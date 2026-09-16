@@ -1,4 +1,4 @@
-const EDGE_FUNCTION_URL = "https://PROJECT_REF_AQUI.supabase.co/functions/v1/cadastro-advogado";
+const EDGE_FUNCTION_URL = "https://wuxuxxdikaacggwqivmm.supabase.co/functions/v1/cadastro-advogado";
 
 function validarCPF(cpfBruto) {
   const digitos = cpfBruto.replace(/\D/g, "");

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Astra Just — Cadastro de Advogado</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+  <main class="container">
+    <h1>Cadastro — Astra Just</h1>
+    <p class="subtitulo">Preencha seus dados para avaliação do seu cadastro de assinante.</p>
+
+    <form id="form-cadastro" novalidate>
+      <label for="nome">Nome completo</label>
+      <input type="text" id="nome" name="nome" required>
+
+      <label for="cpf">CPF</label>
+      <input type="text" id="cpf" name="cpf" inputmode="numeric" placeholder="000.000.000-00" required>
+      <span class="erro-campo" id="erro-cpf"></span>
+
+      <label for="oab_numero">Número da OAB</label>
+      <input type="text" id="oab_numero" name="oab_numero" required>
+
+      <label for="oab_uf">UF da OAB</label>
+      <select id="oab_uf" name="oab_uf" required>
+        <option value="">Selecione</option>
+        <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+        <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+        <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+        <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+        <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+        <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+        <option>SP</option><option>SE</option><option>TO</option>
+      </select>
+
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" required>
+
+      <label for="telefone">Telefone</label>
+      <input type="tel" id="telefone" name="telefone" placeholder="(00) 00000-0000" required>
+
+      <label for="endereco">Endereço completo</label>
+      <textarea id="endereco" name="endereco" required></textarea>
+
+      <label class="checkbox">
+        <input type="checkbox" id="aceite_lgpd" name="aceite_lgpd" required>
+        Li e concordo com o uso dos meus dados pessoais para avaliação do meu
+        cadastro como assinante da Astra Just, conforme a Lei Geral de
+        Proteção de Dados (Lei 13.709/2018).
+      </label>
+
+      <div class="cf-turnstile" data-sitekey="TURNSTILE_SITE_KEY_AQUI"></div>
+
+      <button type="submit" id="botao-enviar">Enviar cadastro</button>
+      <p class="mensagem" id="mensagem" role="status"></p>
+    </form>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>

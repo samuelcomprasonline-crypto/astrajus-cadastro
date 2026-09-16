@@ -1,0 +1,52 @@
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  margin: 0;
+  padding: 24px 16px;
+  color: #1a1a1a;
+}
+.container {
+  max-width: 480px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+h1 { font-size: 1.5rem; margin-bottom: 4px; }
+.subtitulo { color: #555; margin-top: 0; margin-bottom: 24px; }
+form { display: flex; flex-direction: column; gap: 4px; }
+label { font-weight: 600; margin-top: 12px; font-size: 0.9rem; }
+input, select, textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+}
+textarea { resize: vertical; min-height: 60px; }
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: normal;
+  font-size: 0.85rem;
+  margin-top: 16px;
+}
+.checkbox input { width: auto; }
+.erro-campo { color: #c0392b; font-size: 0.8rem; min-height: 1em; }
+button {
+  margin-top: 20px;
+  padding: 12px;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+.mensagem { min-height: 1.2em; font-size: 0.9rem; margin-top: 12px; }
+.mensagem.erro { color: #c0392b; }
+.mensagem.sucesso { color: #27ae60; }

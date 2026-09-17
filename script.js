@@ -92,6 +92,14 @@ form.addEventListener("submit", async (evento) => {
 
   const formaPagamento = form.querySelector('input[name="forma_pagamento"]:checked')?.value;
 
+  const enderecoRua = form.endereco_rua.value.trim();
+  const enderecoNumero = form.endereco_numero.value.trim();
+  const enderecoCep = form.endereco_cep.value.replace(/\D/g, "");
+  if (!enderecoRua || !enderecoNumero || enderecoCep.length !== 8) {
+    mostrarMensagem("Preencha rua, número e CEP válidos pra cobrança.", "erro");
+    return;
+  }
+
   const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
   if (!turnstileToken) {
     mostrarMensagem("Confirme que você não é um robô antes de enviar.", "erro");
@@ -140,6 +148,9 @@ form.addEventListener("submit", async (evento) => {
         areas,
         forma_pagamento: formaPagamento,
         idempotency_key: idempotencyKey,
+        endereco_rua: enderecoRua,
+        endereco_numero: enderecoNumero,
+        endereco_cep: enderecoCep,
       }),
     });
 

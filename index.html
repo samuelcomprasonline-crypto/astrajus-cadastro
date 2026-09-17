@@ -66,6 +66,15 @@
       </fieldset>
       <p id="preco-calculado">Selecione ao menos uma área</p>
 
+      <label for="endereco_rua">Rua (pra cobrança)</label>
+      <input type="text" id="endereco_rua" name="endereco_rua" required>
+
+      <label for="endereco_numero">Número</label>
+      <input type="text" id="endereco_numero" name="endereco_numero" required>
+
+      <label for="endereco_cep">CEP</label>
+      <input type="text" id="endereco_cep" name="endereco_cep" inputmode="numeric" placeholder="00000-000" required>
+
       <fieldset>
         <legend>Forma de pagamento</legend>
         <label><input type="radio" name="forma_pagamento" value="pix_automatico" checked> Pix Automático (recorrência sem cartão)</label>

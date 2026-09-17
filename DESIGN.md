@@ -1,5 +1,5 @@
 ---
-name: Astra Just — Cadastro de Advogado
+name: Astra Jus — Cadastro de Advogado
 description: Fintech-checkout registration flow for a legal-content subscription, not a marketing page
 colors:
   paper: "#f7f6f3"
@@ -67,13 +67,13 @@ components:
     padding: "32px 28px"
 ---
 
-# Design System: Astra Just — Cadastro de Advogado
+# Design System: Astra Jus — Cadastro de Advogado
 
 ## Overview
 
 **Creative North Star: "The Fintech Ledger"**
 
-Astra Just's registration page refuses the generic navy-and-gold "escritório de advocacia" marketing page. It reads instead as a real, safe financial transaction — closer to Asaas Checkout or a bank's account-opening flow than to a law-firm landing page. The design has no hero, no sales copy, no social proof: a single centered card, a 3-step progress indicator, and one field at a time. The transaction itself is the interface; there is nothing around it to sell the advogado on.
+Astra Jus's registration page refuses the generic navy-and-gold "escritório de advocacia" marketing page. It reads instead as a real, safe financial transaction — closer to Asaas Checkout or a bank's account-opening flow than to a law-firm landing page. The design has no hero, no sales copy, no social proof: a single centered card, a 3-step progress indicator, and one field at a time. The transaction itself is the interface; there is nothing around it to sell the advogado on.
 
 The palette is near-white paper with graphite-black ink and exactly one accent (indigo) carrying every instance of primary action, active state, and focus. IBM Plex Sans runs the whole page — no display face, no serif, no second family. Cards are soft-shadowed and generously rounded; the overall material is quiet, professional, and restrained rather than tactile or decorative. This is a register a criterious lawyer with zero patience for "vendedor genérico" language can trust in one glance.
 
@@ -117,7 +117,7 @@ Deliberately restrained: neutrals carry the page, one indigo accent carries ever
 - **Body** (400, 0.95rem): input text and general copy.
 - **Label** (500, 0.85rem): field labels, fieldset legends.
 - **Caption** (400, 0.78–0.92rem): step legends under headings, field-level error text, status messages.
-- **Brand mark** (700, 1.05rem, -0.01em): the "Astra Just" wordmark at the top of the page — the one place bold weight is used for identity rather than emphasis.
+- **Brand mark** (700, 1.05rem, -0.01em): the "Astra Jus" wordmark at the top of the page — the one place bold weight is used for identity rather than emphasis.
 
 ### Named Rules
 **The No-Display-Face Rule.** There is no separate display typeface. Every text role is IBM Plex Sans at a different weight/size; the system never reaches for a second family to signal importance.

@@ -16,11 +16,11 @@ Advogados brasileiros, sem perfil de porte específico (autônomo/solo ou escrit
 
 ## Product Purpose
 
-Astra Just gera roteiros de vídeo de marketing jurídico automaticamente, personalizados por área de atuação, a partir de notícias e julgados reais (STJ, LawLetter/Migalhas). O advogado assina, escolhe as áreas, e recebe roteiros prontos pra gravar — sem precisar pesquisar ou escrever o conteúdo.
+Astra Jus gera roteiros de vídeo de marketing jurídico automaticamente, personalizados por área de atuação, a partir de notícias e julgados reais (STJ, LawLetter/Migalhas). O advogado assina, escolhe as áreas, e recebe roteiros prontos pra gravar — sem precisar pesquisar ou escrever o conteúdo.
 
 ## Positioning
 
-O sistema nasceu da própria experiência do fundador (advogado) usando IA manualmente pra roteirizar notícias jurídicas — Astra Just automatiza esse processo pra outros advogados. Diferencial: conteúdo gerado a partir de fontes jurídicas reais e personalizado por área de atuação, não conteúdo genérico de agência de social media.
+O sistema nasceu da própria experiência do fundador (advogado) usando IA manualmente pra roteirizar notícias jurídicas — Astra Jus automatiza esse processo pra outros advogados. Diferencial: conteúdo gerado a partir de fontes jurídicas reais e personalizado por área de atuação, não conteúdo genérico de agência de social media.
 
 ## Operating Context
 
@@ -37,7 +37,7 @@ Fluxo: cadastro (dados pessoais + CPF + OAB) → seleção de área(s) de atuaç
 
 ## Brand Commitments
 
-Nome: Astra Just. Domínio: astrajus.com.br.
+Nome: Astra Jus. Domínio: astrajus.com.br.
 
 ## Evidence on Hand
 

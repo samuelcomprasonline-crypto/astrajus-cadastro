@@ -51,10 +51,36 @@
         Proteção de Dados (Lei 13.709/2018).
       </label>
 
+      <fieldset>
+        <legend>Áreas que você quer assinar</legend>
+        <label><input type="checkbox" name="area" value="civel"> Cível</label>
+        <label><input type="checkbox" name="area" value="consumidor"> Consumidor</label>
+        <label><input type="checkbox" name="area" value="trabalhista"> Trabalhista</label>
+        <label><input type="checkbox" name="area" value="tributario"> Tributário</label>
+        <label><input type="checkbox" name="area" value="empresarial"> Empresarial</label>
+        <label><input type="checkbox" name="area" value="familia_sucessoes"> Família/Sucessões</label>
+        <label><input type="checkbox" name="area" value="criminal"> Criminal</label>
+        <label><input type="checkbox" name="area" value="previdenciario"> Previdenciário</label>
+        <label><input type="checkbox" name="area" value="bancario"> Bancário</label>
+        <label><input type="checkbox" name="area" value="imobiliario_regularizacao_fundiaria"> Imobiliário/Regularização Fundiária</label>
+      </fieldset>
+      <p id="preco-calculado">Selecione ao menos uma área</p>
+
+      <fieldset>
+        <legend>Forma de pagamento</legend>
+        <label><input type="radio" name="forma_pagamento" value="pix_automatico" checked> Pix Automático (recorrência sem cartão)</label>
+        <label><input type="radio" name="forma_pagamento" value="cartao_credito"> Cartão de crédito</label>
+      </fieldset>
+
       <div class="cf-turnstile" data-sitekey="0x4AAAAAAE4_LuijMr7cFA41"></div>
 
-      <button type="submit" id="botao-enviar">Enviar cadastro</button>
+      <button type="submit" id="botao-enviar">Assinar</button>
       <p class="mensagem" id="mensagem" role="status"></p>
+
+      <div id="area-pagamento" style="display:none">
+        <p>Escaneie o QR code no app do seu banco pra confirmar a assinatura:</p>
+        <img id="qrcode-pix" alt="QR code Pix">
+      </div>
     </form>
   </main>
   <script src="script.js"></script>

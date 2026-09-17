@@ -1,4 +1,21 @@
 const EDGE_FUNCTION_URL = "https://wuxuxxdikaacggwqivmm.supabase.co/functions/v1/cadastro-advogado";
+const CRIAR_COBRANCA_URL = "https://wuxuxxdikaacggwqivmm.supabase.co/functions/v1/criar-cobranca";
+
+const PRECO_BASE_CENTAVOS = 14700;
+const PRECO_AREA_ADICIONAL_CENTAVOS = 4700;
+const PRECO_PACOTE_COMPLETO_CENTAVOS = 39700;
+const TOTAL_AREAS = 10;
+
+function calcularPrecoCentavos(areas) {
+  if (areas.length === 0) return 0;
+  if (areas.length >= TOTAL_AREAS) return PRECO_PACOTE_COMPLETO_CENTAVOS;
+  const valorAditivo = PRECO_BASE_CENTAVOS + (areas.length - 1) * PRECO_AREA_ADICIONAL_CENTAVOS;
+  return Math.min(valorAditivo, PRECO_PACOTE_COMPLETO_CENTAVOS);
+}
+
+function formatarReais(centavos) {
+  return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 function validarCPF(cpfBruto) {
   const digitos = cpfBruto.replace(/\D/g, "");
@@ -22,11 +39,33 @@ function validarCPF(cpfBruto) {
 console.assert(validarCPF("111.444.777-35") === true, "CPF válido deveria passar");
 console.assert(validarCPF("11144477736") === false, "dígito verificador errado deveria falhar");
 console.assert(validarCPF("00000000000") === false, "dígitos repetidos deveria falhar");
+console.assert(calcularPrecoCentavos(["civel"]) === 14700, "1 area deveria custar 14700");
+console.assert(calcularPrecoCentavos(["civel", "consumidor"]) === 19400, "2 areas deveria custar 19400");
 
 const form = document.getElementById("form-cadastro");
 const botao = document.getElementById("botao-enviar");
 const mensagem = document.getElementById("mensagem");
 const erroCpf = document.getElementById("erro-cpf");
+const precoCalculado = document.getElementById("preco-calculado");
+const checkboxesArea = document.querySelectorAll('input[name="area"]');
+const areaPagamentoDiv = document.getElementById("area-pagamento");
+const qrcodePix = document.getElementById("qrcode-pix");
+
+let idempotencyKey = crypto.randomUUID();
+
+function areasMarcadas() {
+  return Array.from(checkboxesArea).filter((c) => c.checked).map((c) => c.value);
+}
+
+function atualizarPreco() {
+  const areas = areasMarcadas();
+  precoCalculado.textContent = areas.length === 0
+    ? "Selecione ao menos uma área"
+    : `Valor mensal: ${formatarReais(calcularPrecoCentavos(areas))}`;
+}
+
+checkboxesArea.forEach((c) => c.addEventListener("change", atualizarPreco));
+atualizarPreco();
 
 function mostrarMensagem(texto, tipo) {
   mensagem.textContent = texto;
@@ -44,43 +83,92 @@ form.addEventListener("submit", async (evento) => {
     return;
   }
 
+  const areas = areasMarcadas();
+  if (areas.length === 0) {
+    mostrarMensagem("Selecione ao menos uma área.", "erro");
+    return;
+  }
+
+  const formaPagamento = form.querySelector('input[name="forma_pagamento"]:checked')?.value;
+
   const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
   if (!turnstileToken) {
     mostrarMensagem("Confirme que você não é um robô antes de enviar.", "erro");
     return;
   }
 
-  const corpo = {
-    nome: form.nome.value.trim(),
-    cpf,
-    oab_numero: form.oab_numero.value.trim(),
-    oab_uf: form.oab_uf.value,
-    email: form.email.value.trim(),
-    telefone: form.telefone.value.trim(),
-    endereco: form.endereco.value.trim(),
-    aceite_lgpd: form.aceite_lgpd.checked,
-    turnstileToken,
-  };
-
   botao.disabled = true;
-  mostrarMensagem("Enviando...", "");
+  mostrarMensagem("Enviando cadastro...", "");
 
   try {
-    const resposta = await fetch(EDGE_FUNCTION_URL, {
+    const respostaCadastro = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(corpo),
+      body: JSON.stringify({
+        nome: form.nome.value.trim(),
+        cpf,
+        oab_numero: form.oab_numero.value.trim(),
+        oab_uf: form.oab_uf.value,
+        email: form.email.value.trim(),
+        telefone: form.telefone.value.trim(),
+        endereco: form.endereco.value.trim(),
+        aceite_lgpd: form.aceite_lgpd.checked,
+        turnstileToken,
+      }),
     });
 
-    if (resposta.status === 409) {
+    if (respostaCadastro.status === 409) {
       mostrarMensagem("Você já está cadastrado.", "erro");
-    } else if (resposta.ok) {
-      mostrarMensagem("Cadastro enviado! Vamos avaliar seus dados em breve.", "sucesso");
-      form.reset();
-    } else {
-      const dados = await resposta.json().catch(() => ({}));
-      mostrarMensagem(dados.erro || "Não conseguimos enviar, tenta de novo em instantes.", "erro");
+      return;
     }
+    if (!respostaCadastro.ok) {
+      const dados = await respostaCadastro.json().catch(() => ({}));
+      mostrarMensagem(dados.erro || "Não conseguimos enviar, tenta de novo em instantes.", "erro");
+      return;
+    }
+
+    const { id: advogadoId } = await respostaCadastro.json();
+
+    mostrarMensagem("Processando pagamento...", "");
+
+    const respostaCobranca = await fetch(CRIAR_COBRANCA_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        advogado_id: advogadoId,
+        areas,
+        forma_pagamento: formaPagamento,
+        idempotency_key: idempotencyKey,
+      }),
+    });
+
+    const dadosCobranca = await respostaCobranca.json().catch(() => ({}));
+
+    if (!respostaCobranca.ok) {
+      mostrarMensagem(
+        dadosCobranca.erro || "Não conseguimos processar o pagamento, tenta de novo em instantes.",
+        "erro",
+      );
+      return;
+    }
+
+    if (dadosCobranca.tipo === "cartao_credito" && dadosCobranca.checkoutUrl) {
+      mostrarMensagem("Redirecionando pro pagamento...", "sucesso");
+      idempotencyKey = crypto.randomUUID();
+      window.location.href = dadosCobranca.checkoutUrl;
+      return;
+    }
+
+    if (dadosCobranca.tipo === "pix_automatico" && dadosCobranca.qrCode) {
+      mostrarMensagem("Escaneie o QR code no app do seu banco pra confirmar.", "sucesso");
+      areaPagamentoDiv.style.display = "block";
+      const imagem = dadosCobranca.qrCode.encodedImage || dadosCobranca.qrCode.payload || "";
+      qrcodePix.src = "data:image/png;base64," + imagem;
+      idempotencyKey = crypto.randomUUID();
+      return;
+    }
+
+    mostrarMensagem("Cadastro enviado! Vamos confirmar o pagamento em breve.", "sucesso");
   } catch {
     mostrarMensagem("Não conseguimos enviar, tenta de novo em instantes.", "erro");
   } finally {

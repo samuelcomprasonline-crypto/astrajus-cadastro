@@ -50,3 +50,33 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .mensagem { min-height: 1.2em; font-size: 0.9rem; margin-top: 12px; }
 .mensagem.erro { color: #c0392b; }
 .mensagem.sucesso { color: #27ae60; }
+fieldset {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 16px;
+}
+fieldset legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0 4px;
+}
+fieldset label {
+  display: block;
+  font-weight: normal;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+#preco-calculado {
+  font-weight: 600;
+  margin-top: 8px;
+  color: #1a1a2e;
+}
+#area-pagamento {
+  margin-top: 16px;
+  text-align: center;
+}
+#area-pagamento img {
+  max-width: 240px;
+  margin-top: 8px;
+}

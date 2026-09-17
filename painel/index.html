@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Astra Jus — Painel</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="pagina">
+    <header class="marca">
+      <span class="marca-nome">Astra Jus</span>
+      <button type="button" id="botao-sair">Sair</button>
+    </header>
+
+    <main class="cartao">
+      <section id="secao-perfil">
+        <h1 id="nome-advogado">Carregando...</h1>
+        <p id="areas-advogado"></p>
+        <p id="status-assinatura"></p>
+      </section>
+
+      <section id="secao-roteiros">
+        <h2>Seus roteiros</h2>
+        <div id="filtros-roteiros"></div>
+        <div id="lista-roteiros"></div>
+      </section>
+
+      <section id="secao-assinatura">
+        <h2>Assinatura</h2>
+        <div id="detalhes-assinatura"></div>
+        <button type="button" id="botao-cancelar" class="botao-secundario">Cancelar assinatura</button>
+        <p class="mensagem" id="mensagem-assinatura" role="status"></p>
+      </section>
+    </main>
+  </div>
+  <script src="supabase-client.js"></script>
+  <script src="painel.js"></script>
+</body>
+</html>

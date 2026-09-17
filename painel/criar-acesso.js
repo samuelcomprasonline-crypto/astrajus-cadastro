@@ -38,6 +38,21 @@ form.addEventListener("submit", async (evento) => {
     return;
   }
 
+  // Com "Confirm email" ligado, o signUp() de uma conta nova não devolve
+  // sessão até o e-mail ser confirmado -- o vínculo com o advogado só
+  // acontece nesse momento (trigger em auth.users, disparado na
+  // confirmação, não na criação, pra provar que quem se cadastrou é
+  // dono do e-mail antes de dar acesso à assinatura de outra pessoa).
+  if (!dadosSignUp.session) {
+    mostrarMensagem(
+      `Enviamos um e-mail de confirmação para ${email}. Clique no link recebido e depois volte pra fazer login.`,
+      "sucesso",
+    );
+    form.reset();
+    botao.disabled = false;
+    return;
+  }
+
   // O trigger de banco só vincula auth_user_id se o e-mail bater com um
   // advogado aprovado com assinatura ativa. Confere aqui se o vínculo
   // aconteceu antes de mandar pro painel.

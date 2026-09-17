@@ -161,13 +161,21 @@ function renderizarRoteiros(roteiros) {
     checkboxGravado.type = "checkbox";
     checkboxGravado.checked = gravadosPorRoteiro.has(roteiro.id);
     checkboxGravado.addEventListener("change", async () => {
-      await supabaseClient.from("roteiros_progresso").upsert({
+      const novoValor = checkboxGravado.checked;
+      const { error: erroProgresso } = await supabaseClient.from("roteiros_progresso").upsert({
         advogado_id: advogadoAtual.id,
         roteiro_id: roteiro.id,
-        gravado: checkboxGravado.checked,
+        gravado: novoValor,
         marcado_em: new Date().toISOString(),
       }, { onConflict: "advogado_id,roteiro_id" });
-      if (checkboxGravado.checked) {
+
+      if (erroProgresso) {
+        checkboxGravado.checked = !novoValor;
+        alert("Não foi possível salvar. Tente novamente.");
+        return;
+      }
+
+      if (novoValor) {
         gravadosPorRoteiro.add(roteiro.id);
       } else {
         gravadosPorRoteiro.delete(roteiro.id);

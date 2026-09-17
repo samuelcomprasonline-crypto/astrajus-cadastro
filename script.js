@@ -41,6 +41,7 @@ console.assert(validarCPF("11144477736") === false, "dígito verificador errado 
 console.assert(validarCPF("00000000000") === false, "dígitos repetidos deveria falhar");
 console.assert(calcularPrecoCentavos(["civel"]) === 14700, "1 area deveria custar 14700");
 console.assert(calcularPrecoCentavos(["civel", "consumidor"]) === 19400, "2 areas deveria custar 19400");
+console.assert(calcularPrecoCentavos(["civel", "consumidor", "trabalhista", "tributario", "empresarial", "familia_sucessoes", "criminal"]) === 39700, "7 areas deveria ser limitada ao preco do pacote completo");
 
 const form = document.getElementById("form-cadastro");
 const botao = document.getElementById("botao-enviar");

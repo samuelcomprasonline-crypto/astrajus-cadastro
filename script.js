@@ -54,6 +54,38 @@ const qrcodePix = document.getElementById("qrcode-pix");
 
 let idempotencyKey = crypto.randomUUID();
 
+const passos = Array.from(document.querySelectorAll(".passo"));
+const indicadores = Array.from(document.querySelectorAll(".progresso-item"));
+let passoAtual = 1;
+
+function irParaPasso(numero) {
+  passoAtual = numero;
+  passos.forEach((secao) => {
+    secao.hidden = Number(secao.dataset.passo) !== numero;
+  });
+  indicadores.forEach((item) => {
+    const indice = Number(item.dataset.passoIndicador);
+    item.classList.toggle("atual", indice === numero);
+    item.classList.toggle("concluido", indice < numero);
+  });
+  passos[numero - 1].scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.querySelectorAll("[data-voltar]").forEach((btn) => {
+  btn.addEventListener("click", () => irParaPasso(passoAtual - 1));
+});
+
+function validarSecao(idSecao) {
+  const campos = document.querySelectorAll(`#${idSecao} [required]`);
+  for (const campo of campos) {
+    if (!campo.checkValidity()) {
+      campo.reportValidity();
+      return false;
+    }
+  }
+  return true;
+}
+
 function areasMarcadas() {
   return Array.from(checkboxesArea).filter((c) => c.checked).map((c) => c.value);
 }
@@ -75,30 +107,42 @@ function mostrarMensagem(texto, tipo) {
 
 form.addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  erroCpf.textContent = "";
   mostrarMensagem("", "");
 
+  if (passoAtual === 1) {
+    if (!validarSecao("passo-1")) return;
+    erroCpf.textContent = "";
+    if (!validarCPF(form.cpf.value)) {
+      erroCpf.textContent = "CPF inválido";
+      form.cpf.focus();
+      return;
+    }
+    irParaPasso(2);
+    return;
+  }
+
+  if (passoAtual === 2) {
+    if (!validarSecao("passo-2")) return;
+    const cepDigitos = form.endereco_cep.value.replace(/\D/g, "");
+    if (cepDigitos.length !== 8) {
+      mostrarMensagem("CEP inválido.", "erro");
+      form.endereco_cep.focus();
+      return;
+    }
+    if (areasMarcadas().length === 0) {
+      mostrarMensagem("Selecione ao menos uma área.", "erro");
+      return;
+    }
+    irParaPasso(3);
+    return;
+  }
+
   const cpf = form.cpf.value;
-  if (!validarCPF(cpf)) {
-    erroCpf.textContent = "CPF inválido";
-    return;
-  }
-
   const areas = areasMarcadas();
-  if (areas.length === 0) {
-    mostrarMensagem("Selecione ao menos uma área.", "erro");
-    return;
-  }
-
   const formaPagamento = form.querySelector('input[name="forma_pagamento"]:checked')?.value;
-
   const enderecoRua = form.endereco_rua.value.trim();
   const enderecoNumero = form.endereco_numero.value.trim();
   const enderecoCep = form.endereco_cep.value.replace(/\D/g, "");
-  if (!enderecoRua || !enderecoNumero || enderecoCep.length !== 8) {
-    mostrarMensagem("Preencha rua, número e CEP válidos.", "erro");
-    return;
-  }
 
   const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
   if (!turnstileToken) {
@@ -173,7 +217,7 @@ form.addEventListener("submit", async (evento) => {
 
     if (dadosCobranca.tipo === "pix_automatico" && dadosCobranca.qrCode) {
       mostrarMensagem("Escaneie o QR code no app do seu banco pra confirmar.", "sucesso");
-      areaPagamentoDiv.style.display = "block";
+      areaPagamentoDiv.hidden = false;
       const imagem = dadosCobranca.qrCode.encodedImage || dadosCobranca.qrCode.payload || "";
       qrcodePix.src = "data:image/png;base64," + imagem;
       idempotencyKey = crypto.randomUUID();

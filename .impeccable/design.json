@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-17T00:00:00Z",
+  "title": "Design System: Astra Just — Cadastro de Advogado",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Confident Indigo", "canonical": "#4f46e5", "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4338ca", "#4f46e5", "#818cf8", "#c7d2fe", "#eeedfc"] },
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#f7f6f3", "tonalRamp": ["#22262b", "#666b72", "#6f7276", "#c9c5bd", "#e6e3dd", "#f0efec", "#f7f6f3", "#ffffff"] },
+      "surface": { "role": "neutral", "displayName": "Card Surface", "canonical": "#ffffff", "tonalRamp": ["#22262b", "#666b72", "#c9c5bd", "#e6e3dd", "#f7f6f3", "#fafaf8", "#fdfdfc", "#ffffff"] },
+      "error": { "role": "neutral", "displayName": "Error Red", "canonical": "#c23b3b", "tonalRamp": ["#4a1616", "#7a2323", "#a13030", "#c23b3b", "#d16a6a", "#e0999a", "#efc9c9", "#faeaea"] },
+      "success": { "role": "neutral", "displayName": "Success Green", "canonical": "#1f8a57", "tonalRamp": ["#0c3521", "#134e30", "#186c40", "#1f8a57", "#4ba97c", "#83c6a3", "#bfe3cd", "#e9f7ef"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Step Title", "purpose": "The h1 heading per registration step ('Seus dados', 'Endereço e áreas', 'Pagamento')." },
+      "body": { "displayName": "Body", "purpose": "Input text and general copy." },
+      "label": { "displayName": "Label", "purpose": "Field labels and fieldset legends." },
+      "caption": { "displayName": "Caption", "purpose": "Step legends, field errors, status messages." }
+    },
+    "shadows": [
+      { "name": "card-ambient", "value": "0 1px 2px rgba(20,20,15,0.04), 0 16px 40px -12px rgba(20,20,15,0.16)", "purpose": "The single elevation token, reserved for the card holding the transaction." }
+    ],
+    "motion": [
+      { "name": "step-enter", "value": "opacity/translateY(6px) fade-in, 0.25s ease", "purpose": "Entrance animation when a form step becomes visible." },
+      { "name": "press-feedback", "value": "transform: scale(0.98), 0.05s ease", "purpose": "Button active-state tactile press." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "420px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one call-to-action per step (Continuar / Assinar), bottom-right of the card.",
+      "html": "<button class=\"ds-btn-primary\">Continuar</button>",
+      "css": ".ds-btn-primary { padding: 13px 20px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; font-family: 'IBM Plex Sans', sans-serif; border: none; min-width: 160px; background: #4f46e5; color: #fff; cursor: pointer; transition: background 0.15s ease, opacity 0.15s ease, transform 0.05s ease; } .ds-btn-primary:hover { background: #4338ca; } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px #eeedfc, 0 0 0 1px #4f46e5; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Back navigation ('Voltar') between steps.",
+      "html": "<button class=\"ds-btn-secondary\">Voltar</button>",
+      "css": ".ds-btn-secondary { padding: 13px 20px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; font-family: 'IBM Plex Sans', sans-serif; background: transparent; color: #666b72; border: 1.5px solid #e6e3dd; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; } .ds-btn-secondary:hover { border-color: #c9c5bd; color: #22262b; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text field used across all three steps.",
+      "html": "<label class=\"ds-label\" for=\"ds-nome\">Nome completo</label><input class=\"ds-input\" id=\"ds-nome\" type=\"text\" placeholder=\"\">",
+      "css": ".ds-label { font-weight: 500; font-size: 0.85rem; color: #22262b; display: block; margin-bottom: 6px; } .ds-input { padding: 11px 12px; border: 1.5px solid #e6e3dd; border-radius: 10px; font-size: 0.95rem; font-family: 'IBM Plex Sans', sans-serif; width: 100%; color: #22262b; background: #fff; transition: border-color 0.15s ease; } .ds-input::placeholder { color: #6f7276; } .ds-input:hover { border-color: #c9c5bd; } .ds-input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px #eeedfc; }"
+    },
+    {
+      "name": "Step Progress",
+      "kind": "nav",
+      "refersTo": "progress-stepper",
+      "description": "3-dot horizontal stepper showing registration progress: pending, active, completed states.",
+      "html": "<ol class=\"ds-progress\"><li class=\"ds-progress-item ds-completed\"><span class=\"ds-bubble\">1</span><span class=\"ds-label-sm\">Seus dados</span></li><li class=\"ds-progress-line ds-completed\"></li><li class=\"ds-progress-item ds-active\"><span class=\"ds-bubble\">2</span><span class=\"ds-label-sm\">Endereço e áreas</span></li><li class=\"ds-progress-line\"></li><li class=\"ds-progress-item\"><span class=\"ds-bubble\">3</span><span class=\"ds-label-sm\">Pagamento</span></li></ol>",
+      "css": ".ds-progress { list-style: none; display: flex; align-items: center; margin: 0; padding: 0; } .ds-progress-item { display: flex; flex-direction: column; align-items: center; gap: 6px; } .ds-bubble { width: 30px; height: 30px; border-radius: 999px; border: 1.5px solid #e6e3dd; color: #6f7276; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; } .ds-label-sm { font-size: 0.72rem; color: #6f7276; text-align: center; max-width: 88px; } .ds-progress-line { flex: 1 1 auto; height: 1.5px; background: #e6e3dd; margin: 0 6px 22px; } .ds-active .ds-bubble { border-color: #4f46e5; color: #4f46e5; background: #eeedfc; } .ds-active .ds-label-sm { color: #22262b; font-weight: 500; } .ds-completed .ds-bubble { border-color: #4f46e5; background: #4f46e5; color: #fff; } .ds-progress-line.ds-completed { background: #4f46e5; }"
+    },
+    {
+      "name": "Payment Method Row",
+      "kind": "chip",
+      "refersTo": "forma-pagamento",
+      "description": "Radio-selectable payment method row (Pix / cartão de crédito), signature selected-state pattern using :has().",
+      "html": "<label class=\"ds-pay-row ds-checked\"><input type=\"radio\" name=\"ds-forma\" checked> Pix (QR code renovado todo mês)</label>",
+      "css": ".ds-pay-row { display: flex; align-items: center; gap: 10px; font-weight: 400; font-size: 0.9rem; padding: 13px 14px; border: 1.5px solid #e6e3dd; border-radius: 10px; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; font-family: 'IBM Plex Sans', sans-serif; color: #22262b; } .ds-pay-row:has(input:checked), .ds-pay-row.ds-checked { border-color: #4f46e5; background: #eeedfc; } .ds-pay-row input { width: 17px; height: 17px; accent-color: #4f46e5; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The single container holding the entire registration transaction.",
+      "html": "<div class=\"ds-card\">Content</div>",
+      "css": ".ds-card { background: #fff; border-radius: 14px; box-shadow: 0 1px 2px rgba(20,20,15,0.04), 0 16px 40px -12px rgba(20,20,15,0.16); padding: 32px 28px; font-family: 'IBM Plex Sans', sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Fintech Ledger",
+    "overview": "Astra Just's registration page refuses the generic navy-and-gold \"escritório de advocacia\" marketing page. It reads instead as a real, safe financial transaction — closer to Asaas Checkout or a bank's account-opening flow than to a law-firm landing page. The design has no hero, no sales copy, no social proof: a single centered card, a 3-step progress indicator, and one field at a time. The transaction itself is the interface; there is nothing around it to sell the advogado on. The palette is near-white paper with graphite-black ink and exactly one accent (indigo) carrying every instance of primary action, active state, and focus. IBM Plex Sans runs the whole page — no display face, no serif, no second family. Cards are soft-shadowed and generously rounded; the overall material is quiet, professional, and restrained rather than tactile or decorative. This is a register a criterious lawyer with zero patience for \"vendedor genérico\" language can trust in one glance.",
+    "keyCharacteristics": [
+      "Single accent color (indigo) for every primary/active/focus signal, never decorative",
+      "One IBM Plex Sans family across every text role — weight and size carry hierarchy, not font choice",
+      "Flat, near-white paper background; depth comes from one soft ambient card shadow, not layering",
+      "Generous, consistent field spacing — one coherent question per screen region",
+      "Step-by-step disclosure (3 steps) instead of a single long form or a scroll-driven sales page"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Indigo is the only color allowed to mean \"active,\" \"selected,\" or \"primary action.\" It never appears as pure decoration; every indigo pixel is a state signal.", "section": "colors" },
+      { "name": "The No-Display-Face Rule", "body": "There is no separate display typeface. Every text role is IBM Plex Sans at a different weight/size; the system never reaches for a second family to signal importance.", "section": "typography" },
+      { "name": "The One Shadow Rule", "body": "Exactly one shadow value exists in the system, reserved for the card that holds the transaction. Nothing else lifts.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use indigo (#4f46e5) as the only accent — for primary actions, active/completed step state, focus rings, checked inputs, and the calculated-price banner.",
+      "Do keep every text role in IBM Plex Sans; differentiate hierarchy with weight and size, not typeface.",
+      "Do reserve the card shadow for the one container holding the transaction; keep buttons, inputs, and chips flat.",
+      "Do disclose one step's fields at a time behind the 3-dot progress indicator rather than a single long scroll."
+    ],
+    "donts": [
+      "Don't introduce a second accent color or a decorative color role — the palette's discipline (one accent, warm neutrals) is load-bearing for the \"not a sales pitch\" thesis.",
+      "Don't add hero imagery, testimonials, or sales copy above the form. The direction contract explicitly rejects social-proof framing (Product Principle 1: no fabricated testimonials pre-launch) and a marketing register for this page.",
+      "Don't add a display/serif typeface or emissive/decorative visual registers (the concept-seed pass explicitly declined a retro-console/glitch/emissive-void direction as unreadable for this audience — see the surface brief FORM block)."
+    ]
+  }
+}

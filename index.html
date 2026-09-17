@@ -41,8 +41,14 @@
       <label for="telefone">Telefone</label>
       <input type="tel" id="telefone" name="telefone" placeholder="(00) 00000-0000" required>
 
-      <label for="endereco">Endereço completo</label>
-      <textarea id="endereco" name="endereco" required></textarea>
+      <label for="endereco_rua">Rua</label>
+      <input type="text" id="endereco_rua" name="endereco_rua" required>
+
+      <label for="endereco_numero">Número</label>
+      <input type="text" id="endereco_numero" name="endereco_numero" required>
+
+      <label for="endereco_cep">CEP</label>
+      <input type="text" id="endereco_cep" name="endereco_cep" inputmode="numeric" placeholder="00000-000" required>
 
       <label class="checkbox">
         <input type="checkbox" id="aceite_lgpd" name="aceite_lgpd" required>
@@ -65,15 +71,6 @@
         <label><input type="checkbox" name="area" value="imobiliario_regularizacao_fundiaria"> Imobiliário/Regularização Fundiária</label>
       </fieldset>
       <p id="preco-calculado">Selecione ao menos uma área</p>
-
-      <label for="endereco_rua">Rua (pra cobrança)</label>
-      <input type="text" id="endereco_rua" name="endereco_rua" required>
-
-      <label for="endereco_numero">Número</label>
-      <input type="text" id="endereco_numero" name="endereco_numero" required>
-
-      <label for="endereco_cep">CEP</label>
-      <input type="text" id="endereco_cep" name="endereco_cep" inputmode="numeric" placeholder="00000-000" required>
 
       <fieldset>
         <legend>Forma de pagamento</legend>

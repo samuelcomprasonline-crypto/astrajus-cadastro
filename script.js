@@ -96,7 +96,7 @@ form.addEventListener("submit", async (evento) => {
   const enderecoNumero = form.endereco_numero.value.trim();
   const enderecoCep = form.endereco_cep.value.replace(/\D/g, "");
   if (!enderecoRua || !enderecoNumero || enderecoCep.length !== 8) {
-    mostrarMensagem("Preencha rua, número e CEP válidos pra cobrança.", "erro");
+    mostrarMensagem("Preencha rua, número e CEP válidos.", "erro");
     return;
   }
 
@@ -120,7 +120,7 @@ form.addEventListener("submit", async (evento) => {
         oab_uf: form.oab_uf.value,
         email: form.email.value.trim(),
         telefone: form.telefone.value.trim(),
-        endereco: form.endereco.value.trim(),
+        endereco: `${enderecoRua}, ${enderecoNumero} - CEP ${enderecoCep}`,
         aceite_lgpd: form.aceite_lgpd.checked,
         turnstileToken,
       }),

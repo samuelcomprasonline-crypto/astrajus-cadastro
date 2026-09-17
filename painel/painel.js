@@ -189,6 +189,84 @@ function renderizarRoteiros(roteiros) {
   }
 }
 
+const CANCELAR_ASSINATURA_URL =
+  "https://wuxuxxdikaacggwqivmm.supabase.co/functions/v1/cancelar-assinatura-painel";
+
+function mostrarMensagemAssinatura(texto, tipo) {
+  const el = document.getElementById("mensagem-assinatura");
+  el.textContent = texto;
+  el.className = "mensagem " + tipo;
+}
+
+async function carregarDetalhesAssinatura() {
+  const { data: assinatura } = await supabaseClient
+    .from("assinaturas")
+    .select("areas, forma_pagamento, valor_mensal_centavos, status, acesso_valido_ate")
+    .in("status", ["ativa", "cancelamento_agendado"])
+    .maybeSingle();
+
+  const container = document.getElementById("detalhes-assinatura");
+  const botaoCancelar = document.getElementById("botao-cancelar");
+
+  if (!assinatura) {
+    container.textContent = "Nenhuma assinatura ativa.";
+    botaoCancelar.style.display = "none";
+    return;
+  }
+
+  const valor = (assinatura.valor_mensal_centavos / 100).toLocaleString("pt-BR", {
+    style: "currency", currency: "BRL",
+  });
+  container.textContent =
+    `Áreas: ${assinatura.areas.join(", ")} — ${valor}/mês — ` +
+    (assinatura.forma_pagamento === "cartao_credito" ? "cartão de crédito" : "Pix");
+
+  if (assinatura.status === "cancelamento_agendado") {
+    botaoCancelar.style.display = "none";
+    mostrarMensagemAssinatura(
+      `Assinatura já cancelada — acesso liberado até ${assinatura.acesso_valido_ate}.`,
+      "",
+    );
+  } else {
+    botaoCancelar.style.display = "";
+  }
+}
+
+document.getElementById("botao-cancelar").addEventListener("click", async () => {
+  const confirmado = window.confirm(
+    "Cancelar sua assinatura? Você continua com acesso até o fim do ciclo já pago, sem reembolso do valor pago.",
+  );
+  if (!confirmado) return;
+
+  const botao = document.getElementById("botao-cancelar");
+  botao.disabled = true;
+  mostrarMensagemAssinatura("Cancelando...", "");
+
+  const resposta = await fetch(CANCELAR_ASSINATURA_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "authorization": `Bearer ${sessaoAtual.access_token}`,
+    },
+  });
+  const dados = await resposta.json().catch(() => ({}));
+
+  if (!resposta.ok) {
+    mostrarMensagemAssinatura(dados.erro || "Não foi possível cancelar, tenta de novo em instantes.", "erro");
+    botao.disabled = false;
+    return;
+  }
+
+  mostrarMensagemAssinatura(
+    `Assinatura cancelada. Seu acesso continua liberado até ${dados.acesso_valido_ate}.`,
+    "sucesso",
+  );
+  botao.style.display = "none";
+});
+
 iniciar().then(() => {
-  if (advogadoAtual) carregarRoteiros();
+  if (advogadoAtual) {
+    carregarRoteiros();
+    carregarDetalhesAssinatura();
+  }
 });

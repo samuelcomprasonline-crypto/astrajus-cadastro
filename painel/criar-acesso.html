@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Astra Jus — Criar acesso ao painel</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="pagina">
+    <header class="marca"><span class="marca-nome">Astra Jus</span></header>
+    <main class="cartao">
+      <h1>Criar acesso ao painel</h1>
+      <p class="passo-legenda">Use o mesmo e-mail do seu cadastro de assinante.</p>
+      <form id="form-criar-acesso" novalidate>
+        <label for="email">E-mail</label>
+        <input type="email" id="email" name="email" required>
+
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" name="senha" minlength="8" required>
+
+        <div class="acoes">
+          <button type="submit" class="botao-primario" id="botao-criar">Criar acesso</button>
+        </div>
+        <p class="mensagem" id="mensagem" role="status"></p>
+      </form>
+      <p><a href="login.html">Já tenho acesso, entrar</a></p>
+    </main>
+  </div>
+  <script src="supabase-client.js"></script>
+  <script src="criar-acesso.js"></script>
+</body>
+</html>

@@ -242,14 +242,22 @@ document.getElementById("botao-cancelar").addEventListener("click", async () => 
   botao.disabled = true;
   mostrarMensagemAssinatura("Cancelando...", "");
 
-  const resposta = await fetch(CANCELAR_ASSINATURA_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "authorization": `Bearer ${sessaoAtual.access_token}`,
-    },
-  });
-  const dados = await resposta.json().catch(() => ({}));
+  let resposta;
+  let dados;
+  try {
+    resposta = await fetch(CANCELAR_ASSINATURA_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "authorization": `Bearer ${sessaoAtual.access_token}`,
+      },
+    });
+    dados = await resposta.json().catch(() => ({}));
+  } catch {
+    mostrarMensagemAssinatura("Não foi possível cancelar, tenta de novo em instantes.", "erro");
+    botao.disabled = false;
+    return;
+  }
 
   if (!resposta.ok) {
     mostrarMensagemAssinatura(dados.erro || "Não foi possível cancelar, tenta de novo em instantes.", "erro");

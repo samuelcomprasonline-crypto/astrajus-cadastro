@@ -2,6 +2,14 @@ let sessaoAtual = null;
 let advogadoAtual = null;
 let areasAssinadasAtual = [];
 
+const ROTULOS_AREA = {
+  civel: "Cível", consumidor: "Consumidor", trabalhista: "Trabalhista", tributario: "Tributário",
+  empresarial: "Empresarial", familia_sucessoes: "Família/Sucessões", criminal: "Criminal",
+  previdenciario: "Previdenciário", bancario: "Bancário",
+  imobiliario_regularizacao_fundiaria: "Imobiliário/Regularização Fundiária",
+};
+function rotuloArea(slug) { return ROTULOS_AREA[slug] || slug; }
+
 async function iniciar() {
   sessaoAtual = await exigirSessao();
   if (!sessaoAtual) return;
@@ -35,7 +43,7 @@ async function iniciar() {
 
   areasAssinadasAtual = assinatura.areas;
   document.getElementById("areas-advogado").textContent =
-    "Áreas assinadas: " + assinatura.areas.join(", ");
+    "Áreas assinadas: " + assinatura.areas.map(rotuloArea).join(", ");
   document.getElementById("status-assinatura").textContent =
     assinatura.status === "cancelamento_agendado"
       ? `Assinatura cancelada — acesso liberado até ${assinatura.acesso_valido_ate}.`
@@ -72,7 +80,7 @@ function popularFiltros(roteiros) {
   const selectArea = document.createElement("select");
   selectArea.id = "filtro-area";
   selectArea.appendChild(new Option("Todas as áreas", ""));
-  for (const area of areas) selectArea.appendChild(new Option(area, area));
+  for (const area of areas) selectArea.appendChild(new Option(rotuloArea(area), area));
 
   const selectSemana = document.createElement("select");
   selectSemana.id = "filtro-semana";
@@ -143,7 +151,7 @@ function renderizarTrends() {
     grupo.className = "grupo-trends";
 
     const titulo = document.createElement("h3");
-    titulo.textContent = area;
+    titulo.textContent = rotuloArea(area);
     grupo.appendChild(titulo);
 
     const lista = document.createElement("ol");
@@ -190,7 +198,7 @@ function renderizarRoteiros(roteiros) {
     item.className = "item-roteiro";
 
     const titulo = document.createElement("h3");
-    titulo.textContent = `${roteiro.area} — semana ${roteiro.semana_iso}`;
+    titulo.textContent = `${rotuloArea(roteiro.area)} — semana ${roteiro.semana_iso}`;
     if (areasEmAltaSemanaAtual.has(roteiro.area) && roteiro.semana_iso === semanaAtual) {
       const selo = document.createElement("span");
       selo.className = "selo-alta";
@@ -273,7 +281,7 @@ async function carregarDetalhesAssinatura() {
     style: "currency", currency: "BRL",
   });
   container.textContent =
-    `Áreas: ${assinatura.areas.join(", ")} — ${valor}/mês — ` +
+    `Áreas: ${assinatura.areas.map(rotuloArea).join(", ")} — ${valor}/mês — ` +
     (assinatura.forma_pagamento === "cartao_credito" ? "cartão de crédito" : "Pix");
 
   if (assinatura.status === "cancelamento_agendado") {

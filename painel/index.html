@@ -4,37 +4,63 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Astra Jus — Painel</title>
-  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="painel.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
-  <div class="pagina">
-    <header class="marca">
-      <span class="marca-nome">Astra Jus</span>
-      <button type="button" id="botao-sair">Sair</button>
-    </header>
+  <aside class="lateral escuro">
+    <div class="marca">
+      <svg class="logo logo-marca" aria-hidden="true"><use href="../assets/logo.svg#marca"/></svg>
+      <svg class="logo logo-nome" role="img" aria-label="Astra Jus"><use href="../assets/logo.svg#wordmark"/></svg>
+    </div>
+    <nav aria-label="Seções do painel">
+      <a href="#secao-perfil">Visão geral</a>
+      <a href="#secao-tendencias">Tendências</a>
+      <a href="#secao-roteiros">Roteiros</a>
+      <a href="#secao-assinatura">Assinatura</a>
+    </nav>
+    <button type="button" id="botao-sair">Sair</button>
+  </aside>
 
-    <main class="cartao">
-      <section id="secao-perfil">
+  <main class="conteudo">
+    <section id="secao-perfil">
+      <div class="hero">
         <h1 id="nome-advogado">Carregando...</h1>
         <p id="areas-advogado"></p>
         <p id="status-assinatura"></p>
-      </section>
+      </div>
+      <div class="estatisticas">
+        <div class="estatistica"><span class="rotulo">Roteiros disponíveis</span><span class="numero" id="stat-roteiros">—</span></div>
+        <div class="estatistica"><span class="rotulo">Já gravei</span><span class="numero" id="stat-gravados">—</span></div>
+        <div class="estatistica"><span class="rotulo">Áreas ativas</span><span class="numero" id="stat-areas">—</span></div>
+        <div class="estatistica"><span class="rotulo">Semana atual</span><span class="numero" id="stat-semana">—</span></div>
+      </div>
+    </section>
 
-      <section id="secao-roteiros">
-        <h2>Seus roteiros</h2>
-        <div id="filtros-roteiros"></div>
-        <div id="lista-roteiros"></div>
-      </section>
+    <section id="secao-tendencias">
+      <h2 class="secao-titulo">Em alta esta semana</h2>
+      <div id="lista-trends">Carregando...</div>
+    </section>
 
-      <section id="secao-assinatura">
-        <h2>Assinatura</h2>
+    <section id="secao-roteiros">
+      <h2 class="secao-titulo">Seus roteiros</h2>
+      <div id="filtros-roteiros"></div>
+      <div id="lista-roteiros"></div>
+    </section>
+
+    <section id="secao-assinatura">
+      <h2 class="secao-titulo">Assinatura</h2>
+      <div class="painel-assinatura">
         <div id="detalhes-assinatura"></div>
         <button type="button" id="botao-cancelar" class="botao-secundario">Cancelar assinatura</button>
         <p class="mensagem" id="mensagem-assinatura" role="status"></p>
-      </section>
-    </main>
-  </div>
+      </div>
+    </section>
+  </main>
   <script src="supabase-client.js"></script>
   <script src="painel.js"></script>
 </body>

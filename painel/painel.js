@@ -1,5 +1,6 @@
 let sessaoAtual = null;
 let advogadoAtual = null;
+let areasAssinadasAtual = [];
 
 async function iniciar() {
   sessaoAtual = await exigirSessao();
@@ -32,6 +33,7 @@ async function iniciar() {
     return;
   }
 
+  areasAssinadasAtual = assinatura.areas;
   document.getElementById("areas-advogado").textContent =
     "Áreas assinadas: " + assinatura.areas.join(", ");
   document.getElementById("status-assinatura").textContent =
@@ -58,6 +60,7 @@ function semanaIsoAtual() {
 let todosRoteiros = [];
 let gravadosPorRoteiro = new Set();
 let areasEmAltaSemanaAtual = new Set();
+let termosTrendsSemana = [];
 
 function popularFiltros(roteiros) {
   const areas = [...new Set(roteiros.map((r) => r.area))].sort();
@@ -113,12 +116,63 @@ async function carregarRoteiros() {
   const semanaAtual = semanaIsoAtual();
   const { data: trends } = await supabaseClient
     .from("trends_semanais")
-    .select("area, termo")
-    .eq("semana_iso", semanaAtual);
+    .select("area, termo, posicao")
+    .eq("semana_iso", semanaAtual)
+    .order("posicao", { ascending: true });
   areasEmAltaSemanaAtual = new Set((trends || []).map((t) => t.area));
+  termosTrendsSemana = trends || [];
 
   popularFiltros(roteiros);
   renderizarRoteiros(roteiros);
+  renderizarTrends();
+  atualizarEstatisticas();
+}
+
+function renderizarTrends() {
+  const container = document.getElementById("lista-trends");
+  container.innerHTML = "";
+
+  for (const area of areasAssinadasAtual || []) {
+    const termos = termosTrendsSemana
+      .filter((t) => t.area === area)
+      .sort((a, b) => a.posicao - b.posicao)
+      .slice(0, 3);
+    if (termos.length === 0) continue;
+
+    const grupo = document.createElement("div");
+    grupo.className = "grupo-trends";
+
+    const titulo = document.createElement("h3");
+    titulo.textContent = area;
+    grupo.appendChild(titulo);
+
+    const lista = document.createElement("ol");
+    for (const t of termos) {
+      const li = document.createElement("li");
+      const posicao = document.createElement("span");
+      posicao.className = "trend-posicao";
+      posicao.textContent = String(t.posicao);
+      const termo = document.createElement("span");
+      termo.textContent = t.termo;
+      li.appendChild(posicao);
+      li.appendChild(termo);
+      lista.appendChild(li);
+    }
+    grupo.appendChild(lista);
+    container.appendChild(grupo);
+  }
+
+  if (!container.hasChildNodes()) {
+    container.textContent =
+      "Os termos em alta desta semana aparecem aqui assim que forem atualizados (toda sexta).";
+  }
+}
+
+function atualizarEstatisticas() {
+  document.getElementById("stat-roteiros").textContent = String(todosRoteiros.length);
+  document.getElementById("stat-gravados").textContent = String(gravadosPorRoteiro.size);
+  document.getElementById("stat-areas").textContent = String((areasAssinadasAtual || []).length);
+  document.getElementById("stat-semana").textContent = semanaIsoAtual();
 }
 
 function renderizarRoteiros(roteiros) {
@@ -180,6 +234,7 @@ function renderizarRoteiros(roteiros) {
       } else {
         gravadosPorRoteiro.delete(roteiro.id);
       }
+      atualizarEstatisticas();
     });
     rotuloGravado.appendChild(checkboxGravado);
     rotuloGravado.appendChild(document.createTextNode(" já gravei"));

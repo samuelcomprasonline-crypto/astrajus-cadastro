@@ -1,0 +1,324 @@
+/* Astra Jus — painel do advogado. Autocontido. */
+* { box-sizing: border-box; }
+
+:root {
+  --indigo: #4f46e5;
+  --indigo-hover: #4338ca;
+  --indigo-fraco: #eeedfc;
+  --violeta: #7c3aed;
+  --grafite: #22262b;
+  --texto-suave: #565b63;
+  --fundo: #f5f5f8;
+  --superficie: #ffffff;
+  --borda: #e6e3dd;
+  --escuro: #0a0a12;
+  --texto-escuro: #f1f2f7;
+  --texto-escuro-suave: #c7c9d3;
+  --erro: #b3312f;
+  --sucesso: #1a7a4c;
+  --raio: 16px;
+  --raio-pequeno: 10px;
+  --sombra: 0 1px 2px rgba(20, 20, 40, 0.05), 0 12px 32px -12px rgba(20, 20, 60, 0.16);
+  --fonte-display: "Jost", "Century Gothic", "Avenir Next", sans-serif;
+  --fonte-corpo: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  font-family: var(--fonte-corpo);
+  line-height: 1.55;
+  color: var(--grafite);
+  background: var(--fundo);
+}
+
+h1, h2, h3, p, ol, ul { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+::selection { background: var(--indigo); color: #fff; }
+:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 4px; }
+.escuro :focus-visible { outline-color: #a5b4fc; }
+
+.logo { display: block; color: currentColor; }
+
+/* Botões e mensagens (compartilhados) */
+button, .botao-primario, .botao-secundario { font-family: var(--fonte-corpo); }
+.botao-primario {
+  display: inline-flex;
+  justify-content: center;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: var(--raio-pequeno);
+  background: var(--indigo);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.botao-primario:hover { background: var(--indigo-hover); }
+.botao-primario:disabled { opacity: 0.6; cursor: not-allowed; }
+.botao-secundario {
+  padding: 9px 16px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  color: var(--grafite);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.botao-secundario:hover { border-color: var(--indigo); color: var(--indigo); }
+.botao-secundario:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.mensagem { margin-top: 16px; font-size: 0.95rem; color: var(--texto-suave); }
+.mensagem:empty { display: none; }
+.mensagem.erro { color: var(--erro); }
+.mensagem.sucesso { color: var(--sucesso); }
+
+/* ---------- Login / criar acesso ---------- */
+body.auth {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 40px 16px;
+  background:
+    radial-gradient(50% 50% at 50% 28%, rgba(79, 70, 229, 0.3), transparent 72%),
+    var(--escuro);
+  color: var(--texto-escuro);
+}
+.auth .logo { width: 200px; height: 23.3px; margin-inline: auto; color: #fff; }
+.auth-cartao {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 28px;
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--grafite);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+}
+.auth-cartao h1 { font-family: var(--fonte-display); font-weight: 400; font-size: 1.6rem; letter-spacing: 0.04em; }
+.passo-legenda { margin-top: 6px; color: var(--texto-suave); font-size: 0.95rem; }
+.auth-cartao form { margin-top: 24px; }
+.auth-cartao label { display: block; margin: 16px 0 6px; font-size: 0.9rem; font-weight: 500; }
+.auth-cartao input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cfd0d8;
+  border-radius: var(--raio-pequeno);
+  background: #fff;
+  color: var(--grafite);
+  font: inherit;
+}
+.auth-cartao input:focus-visible { outline: 2px solid var(--indigo); outline-offset: 0; border-color: var(--indigo); }
+.acoes { margin-top: 24px; }
+.acoes .botao-primario { width: 100%; }
+.auth-cartao a { color: var(--indigo); text-underline-offset: 3px; }
+.auth-cartao .links { margin-top: 20px; display: grid; gap: 8px; font-size: 0.95rem; }
+.auth a.voltar { color: var(--texto-escuro-suave); font-size: 0.95rem; text-underline-offset: 3px; }
+.auth a.voltar:hover { color: #fff; }
+
+/* ---------- Painel ---------- */
+.lateral {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  background: var(--escuro);
+  color: var(--texto-escuro);
+}
+.lateral .marca { display: flex; align-items: center; gap: 10px; padding: 0 8px 28px; }
+.lateral .marca .logo-marca { width: 26px; height: 26px; flex: none; }
+.lateral .marca .logo-nome { width: 112px; height: 13px; }
+.lateral nav { display: flex; flex-direction: column; gap: 2px; }
+.lateral nav a {
+  padding: 10px 12px;
+  border-radius: var(--raio-pequeno);
+  color: var(--texto-escuro-suave);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.15s, color 0.15s;
+}
+.lateral nav a:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.lateral #botao-sair {
+  margin-top: auto;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--raio-pequeno);
+  background: transparent;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.lateral #botao-sair:hover { border-color: #fff; background: rgba(255, 255, 255, 0.06); }
+
+.conteudo { margin-left: 248px; padding: 28px 32px 64px; max-width: 1240px; }
+.conteudo section { scroll-margin-top: 24px; }
+.conteudo > section + section { margin-top: 40px; }
+
+.secao-titulo {
+  margin-bottom: 16px;
+  font-family: var(--fonte-display);
+  font-weight: 400;
+  font-size: 1.35rem;
+  letter-spacing: 0.06em;
+}
+
+/* Hero */
+.hero {
+  padding: 40px 36px;
+  border-radius: 20px;
+  background:
+    radial-gradient(60% 120% at 100% 0%, rgba(255, 255, 255, 0.16), transparent 60%),
+    linear-gradient(120deg, var(--indigo), var(--violeta));
+  color: #fff;
+  box-shadow: 0 20px 44px -18px rgba(79, 70, 229, 0.55);
+}
+.hero h1 {
+  font-family: var(--fonte-display);
+  font-weight: 300;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+.hero p { margin-top: 10px; color: #eceafe; max-width: 60ch; }
+.hero #status-assinatura { font-weight: 500; color: #fff; }
+
+/* Estatísticas */
+.estatisticas { margin-top: 20px; display: grid; gap: 16px; grid-template-columns: repeat(4, 1fr); }
+.estatistica {
+  padding: 20px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+.estatistica .rotulo { display: block; color: var(--texto-suave); font-size: 0.9rem; }
+.estatistica .numero {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--fonte-display);
+  font-weight: 300;
+  font-size: 2.4rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--indigo);
+}
+
+/* Tendências */
+#lista-trends { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+#lista-trends:not(:has(.grupo-trends)) { display: block; color: var(--texto-suave); }
+.grupo-trends {
+  padding: 20px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+.grupo-trends h3 { font-family: var(--fonte-display); font-weight: 500; font-size: 1.1rem; letter-spacing: 0.04em; }
+.grupo-trends ol { margin-top: 12px; display: grid; gap: 10px; }
+.grupo-trends li { display: flex; align-items: baseline; gap: 12px; }
+.trend-posicao {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--indigo-fraco);
+  color: var(--indigo-hover);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 24px;
+  text-align: center;
+}
+
+/* Roteiros */
+#filtros-roteiros { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; }
+#filtros-roteiros select {
+  padding: 9px 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  color: var(--grafite);
+  font: inherit;
+  font-size: 0.95rem;
+}
+#lista-roteiros { display: grid; gap: 16px; }
+#lista-roteiros:not(:has(.item-roteiro)) { color: var(--texto-suave); }
+.item-roteiro {
+  padding: 24px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+.item-roteiro h3 { font-family: var(--fonte-display); font-weight: 500; font-size: 1.15rem; letter-spacing: 0.03em; }
+.selo-alta {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--indigo-fraco);
+  color: var(--indigo-hover);
+  font-family: var(--fonte-corpo);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: 2px;
+}
+.item-roteiro > p { margin-top: 12px; white-space: pre-wrap; max-width: 75ch; }
+.item-roteiro .botao-secundario { margin-top: 16px; }
+.item-roteiro label { margin-left: 16px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.95rem; cursor: pointer; }
+.item-roteiro input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--indigo); }
+
+/* Assinatura */
+.painel-assinatura {
+  padding: 24px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+#botao-cancelar { margin-top: 16px; color: var(--texto-suave); }
+#botao-cancelar:hover { border-color: var(--erro); color: var(--erro); }
+
+@media (max-width: 1100px) {
+  .estatisticas { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 859px) {
+  .lateral {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+  }
+  .lateral .marca { padding: 0; }
+  .lateral .marca .logo-nome { display: none; }
+  .lateral nav { flex: 1; min-width: 0; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .lateral nav::-webkit-scrollbar { display: none; }
+  .lateral nav a { white-space: nowrap; padding: 8px 10px; }
+  .lateral #botao-sair { margin: 0; padding: 8px 12px; }
+  .conteudo { margin-left: 0; padding: 20px 16px 48px; }
+  .hero { padding: 28px 22px; }
+  .conteudo section { scroll-margin-top: 72px; }
+}
+
+@media (max-width: 480px) {
+  .estatisticas { gap: 12px; }
+  .estatistica { padding: 16px; }
+  .estatistica .numero { font-size: 1.8rem; }
+  .item-roteiro { padding: 18px; }
+  .item-roteiro label { margin: 12px 0 0; display: flex; }
+}

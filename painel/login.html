@@ -4,13 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Astra Jus — Entrar no painel</title>
-  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="painel.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
-<body>
-  <div class="pagina">
-    <header class="marca"><span class="marca-nome">Astra Jus</span></header>
-    <main class="cartao">
+<body class="auth escuro">
+  <svg class="logo" role="img" aria-label="Astra Jus"><use href="../assets/logo.svg#wordmark"/></svg>
+  <main class="auth-cartao">
       <h1>Entrar no painel</h1>
       <form id="form-login" novalidate>
         <label for="email">E-mail</label>
@@ -24,9 +27,9 @@
         </div>
         <p class="mensagem" id="mensagem" role="status"></p>
       </form>
-      <p><a href="criar-acesso.html">Ainda não tenho acesso ao painel</a></p>
-    </main>
-  </div>
+      <p class="links"><a href="criar-acesso.html">Ainda não tenho acesso ao painel</a></p>
+  </main>
+  <a class="voltar" href="../index.html">← Voltar ao início</a>
   <script src="supabase-client.js"></script>
   <script src="login.js"></script>
 </body>

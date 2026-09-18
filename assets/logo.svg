@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="marca" viewBox="0 0 64 64">
+    <g fill="none" stroke="currentColor" stroke-width="4">
+      <circle cx="32" cy="32" r="24" stroke-dasharray="118 32.8" transform="rotate(-6 32 32)"/>
+    </g>
+    <circle cx="49" cy="15" r="4.2" fill="currentColor"/>
+  </symbol>
+  <symbol id="wordmark" viewBox="0 0 550 64">
+    <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="butt" stroke-linejoin="miter" transform="translate(0 2)">
+      <path transform="translate(0 0)" d="M2 60V22A20 20 0 0 1 42 22V60M2 40H42"/>
+      <path transform="translate(66 0)" d="M40 14C40 0 4 -4 4 16C4 32 40 28 40 46C40 64 4 64 4 48"/>
+      <path transform="translate(132 0)" d="M0 2H44M22 2V60"/>
+      <path transform="translate(198 0)" d="M4 60V2H26A15 15 0 0 1 26 32H4M24 32L42 60"/>
+      <path transform="translate(264 0)" d="M2 60V22A20 20 0 0 1 42 22V60M2 40H42"/>
+      <path transform="translate(374 0)" d="M40 2V40A18 18 0 0 1 4 40V34"/>
+      <path transform="translate(440 0)" d="M4 2V42A18 18 0 0 0 40 42V2"/>
+      <path transform="translate(506 0)" d="M40 14C40 0 4 -4 4 16C4 32 40 28 40 46C40 64 4 64 4 48"/>
+    </g>
+  </symbol>
+</svg>

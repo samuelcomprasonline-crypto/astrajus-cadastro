@@ -107,7 +107,7 @@ function aplicarFiltros() {
 async function carregarRoteiros() {
   const { data: roteiros, error } = await supabaseClient
     .from("roteiros_gerados")
-    .select("id, area, semana_iso, tom, cta, texto_completo")
+    .select("id, area, semana_iso, tom, cta, texto_completo, assunto, julgado_resumo, orgao_julgador, data_julgamento")
     .order("semana_iso", { ascending: false });
 
   if (error || !roteiros) {
@@ -183,6 +183,24 @@ function atualizarEstatisticas() {
   document.getElementById("stat-semana").textContent = semanaIsoAtual();
 }
 
+function criarEl(tag, classe, texto) {
+  const el = document.createElement(tag);
+  if (classe) el.className = classe;
+  el.textContent = texto;
+  return el;
+}
+
+const ROTULOS_TOM = { urgencia: "Urgência", storytelling: "Storytelling", prevencao: "Prevenção" };
+function rotuloTom(tom) {
+  return ROTULOS_TOM[tom] || (tom.charAt(0).toUpperCase() + tom.slice(1));
+}
+
+// "YYYY-MM-DD" -> "dd/mm/aaaa" sem Date (evita erro de fuso).
+function formatarDataBR(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
 function renderizarRoteiros(roteiros) {
   const container = document.getElementById("lista-roteiros");
   container.innerHTML = "";
@@ -197,26 +215,67 @@ function renderizarRoteiros(roteiros) {
     const item = document.createElement("article");
     item.className = "item-roteiro";
 
-    const titulo = document.createElement("h3");
-    titulo.textContent = `${rotuloArea(roteiro.area)} — semana ${roteiro.semana_iso}`;
+    const cabecalho = document.createElement("div");
+    cabecalho.className = "roteiro-cabecalho";
+    const chips = document.createElement("div");
+    chips.className = "roteiro-chips";
+    chips.appendChild(criarEl("span", "chip-area", rotuloArea(roteiro.area)));
     if (areasEmAltaSemanaAtual.has(roteiro.area) && roteiro.semana_iso === semanaAtual) {
-      const selo = document.createElement("span");
-      selo.className = "selo-alta";
-      selo.textContent = "em alta";
-      titulo.appendChild(selo);
+      chips.appendChild(criarEl("span", "selo-alta", "em alta"));
     }
-    item.appendChild(titulo);
+    if (roteiro.tom) chips.appendChild(criarEl("span", "chip-tom", rotuloTom(roteiro.tom)));
+    cabecalho.appendChild(chips);
+    cabecalho.appendChild(criarEl("span", "roteiro-semana", `semana ${roteiro.semana_iso}`));
+    item.appendChild(cabecalho);
 
-    const texto = document.createElement("p");
-    texto.textContent = roteiro.texto_completo;
-    item.appendChild(texto);
+    item.appendChild(criarEl("h3", "roteiro-titulo", roteiro.assunto || "Assunto não informado"));
+
+    const meta = document.createElement("dl");
+    meta.className = "roteiro-meta";
+    const itensMeta = [
+      ["Órgão julgador", roteiro.orgao_julgador || "não informado na fonte"],
+      ["Data do julgamento", formatarDataBR(roteiro.data_julgamento) || "não informada na fonte"],
+    ];
+    for (const [rotulo, valor] of itensMeta) {
+      const par = document.createElement("div");
+      par.appendChild(criarEl("dt", "", rotulo + ":"));
+      par.appendChild(criarEl("dd", "", valor));
+      meta.appendChild(par);
+    }
+    item.appendChild(meta);
+
+    if (roteiro.julgado_resumo) {
+      const blocoJulgado = document.createElement("section");
+      blocoJulgado.className = "roteiro-bloco";
+      blocoJulgado.appendChild(criarEl("h4", "", "O julgado"));
+      blocoJulgado.appendChild(criarEl("p", "", roteiro.julgado_resumo));
+      item.appendChild(blocoJulgado);
+    }
+
+    const blocoRoteiro = document.createElement("section");
+    blocoRoteiro.className = "roteiro-bloco";
+    blocoRoteiro.appendChild(criarEl("h4", "", "Roteiro"));
+    blocoRoteiro.appendChild(criarEl("p", "roteiro-texto", roteiro.texto_completo));
+    if (roteiro.cta) {
+      const cta = document.createElement("div");
+      cta.className = "roteiro-cta";
+      cta.appendChild(criarEl("span", "roteiro-cta-rotulo", "Chamada para ação"));
+      cta.appendChild(criarEl("p", "", roteiro.cta));
+      blocoRoteiro.appendChild(cta);
+    }
+    item.appendChild(blocoRoteiro);
+
+    const rodape = document.createElement("div");
+    rodape.className = "roteiro-acoes";
 
     const botaoCopiar = document.createElement("button");
     botaoCopiar.type = "button";
     botaoCopiar.className = "botao-secundario";
     botaoCopiar.textContent = "Copiar texto";
-    botaoCopiar.addEventListener("click", () => navigator.clipboard.writeText(roteiro.texto_completo));
-    item.appendChild(botaoCopiar);
+    botaoCopiar.addEventListener("click", () => navigator.clipboard.writeText(
+      roteiro.cta ? `${roteiro.texto_completo}\n\n${roteiro.cta}` : roteiro.texto_completo,
+    ));
+    rodape.appendChild(botaoCopiar);
 
     const rotuloGravado = document.createElement("label");
     const checkboxGravado = document.createElement("input");
@@ -246,7 +305,8 @@ function renderizarRoteiros(roteiros) {
     });
     rotuloGravado.appendChild(checkboxGravado);
     rotuloGravado.appendChild(document.createTextNode(" já gravei"));
-    item.appendChild(rotuloGravado);
+    rodape.appendChild(rotuloGravado);
+    item.appendChild(rodape);
 
     container.appendChild(item);
   }

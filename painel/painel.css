@@ -266,29 +266,49 @@ body.auth {
 #lista-roteiros { display: grid; gap: 16px; }
 #lista-roteiros:not(:has(.item-roteiro)) { color: var(--texto-suave); }
 .item-roteiro {
-  padding: 24px;
+  padding: 28px;
   border-radius: var(--raio);
   background: var(--superficie);
   box-shadow: var(--sombra);
+  min-width: 0;
 }
-.item-roteiro h3 { font-family: var(--fonte-display); font-weight: 500; font-size: 1.15rem; letter-spacing: 0.03em; }
-.selo-alta {
+.roteiro-cabecalho { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.roteiro-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip-area, .chip-tom, .selo-alta {
   display: inline-block;
-  margin-left: 10px;
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: 999px;
-  background: var(--indigo-fraco);
-  color: var(--indigo-hover);
-  font-family: var(--fonte-corpo);
   font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0;
-  vertical-align: 2px;
+  line-height: 1.4;
 }
-.item-roteiro > p { margin-top: 12px; white-space: pre-wrap; max-width: 75ch; }
-.item-roteiro .botao-secundario { margin-top: 16px; }
-.item-roteiro label { margin-left: 16px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.95rem; cursor: pointer; }
+.chip-area { background: var(--indigo-fraco); color: var(--indigo-hover); }
+.selo-alta { background: #fdeede; color: #8a4500; }
+.chip-tom { background: #e2f5ec; color: #14613c; }
+.roteiro-semana { color: var(--texto-suave); font-size: 0.85rem; }
+.roteiro-titulo {
+  margin-top: 16px;
+  font-family: var(--fonte-display);
+  font-weight: 500;
+  font-size: 1.3rem;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+.roteiro-meta { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 0.9rem; }
+.roteiro-meta div { display: flex; flex-wrap: wrap; gap: 0 6px; }
+.roteiro-meta dt { color: var(--texto-suave); }
+.roteiro-meta dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.roteiro-bloco { margin-top: 24px; }
+.roteiro-bloco h4 { margin: 0 0 8px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-suave); }
+.roteiro-bloco p { max-width: 75ch; white-space: pre-line; overflow-wrap: anywhere; }
+.roteiro-cta { margin-top: 16px; padding: 12px 16px; border-left: 3px solid var(--indigo); border-radius: 0 var(--raio-pequeno) var(--raio-pequeno) 0; background: var(--lavanda); }
+.roteiro-cta-rotulo { display: block; margin-bottom: 4px; font-size: 0.8rem; font-weight: 600; color: var(--indigo-hover); }
+.roteiro-acoes { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--borda); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.roteiro-acoes label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.95rem; cursor: pointer; }
 .item-roteiro input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--indigo); }
+
+.secao-intro { margin: -8px 0 16px; max-width: 70ch; color: var(--texto-suave); font-size: 0.95rem; }
 
 /* Assinatura */
 .painel-assinatura {
@@ -330,6 +350,5 @@ body.auth {
   .estatisticas { gap: 12px; }
   .estatistica { padding: 16px; }
   .estatistica .numero { font-size: 1.8rem; }
-  .item-roteiro { padding: 18px; }
-  .item-roteiro label { margin: 12px 0 0; display: flex; }
+  .item-roteiro { padding: 20px; }
 }

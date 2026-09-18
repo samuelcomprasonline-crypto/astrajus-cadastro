@@ -21,6 +21,7 @@
       <a href="#secao-perfil">Visão geral</a>
       <a href="#secao-tendencias">Tendências</a>
       <a href="#secao-roteiros">Roteiros</a>
+      <a href="#secao-gerar">Gerar roteiro</a>
       <a href="#secao-assinatura">Assinatura</a>
     </nav>
     <button type="button" id="botao-sair">Sair</button>
@@ -51,6 +52,41 @@
       <h2 class="secao-titulo">Seus roteiros</h2>
       <div id="filtros-roteiros"></div>
       <div id="lista-roteiros"></div>
+    </section>
+
+    <section id="secao-gerar">
+      <h2 class="secao-titulo">Gerar roteiro</h2>
+      <p class="secao-intro">Escolha um julgado recente das suas áreas e o formato do vídeo. O roteiro sai pronto para gravar e fica salvo no seu histórico.</p>
+
+      <div class="gerar-passo">
+        <div class="gerar-passo-topo">
+          <h3>1. Escolha o julgado</h3>
+          <select id="filtro-julgados-area" class="filtro-select" aria-label="Filtrar julgados por área"></select>
+        </div>
+        <div id="lista-julgados" class="grade-cartoes grade-julgados" role="radiogroup" aria-label="Julgados da semana">Carregando...</div>
+      </div>
+
+      <div class="gerar-passo">
+        <div class="gerar-passo-topo"><h3>2. Escolha o formato</h3></div>
+        <div id="lista-formatos" class="grade-cartoes grade-formatos" role="radiogroup" aria-label="Formato do roteiro">Carregando...</div>
+      </div>
+
+      <div class="gerar-acao">
+        <div class="contador-uso">
+          <p id="contador-uso" aria-live="polite">— neste mês</p>
+          <div class="medidor" aria-hidden="true"><span id="medidor-uso"></span></div>
+        </div>
+        <button type="button" id="botao-gerar" class="botao-primario" disabled aria-describedby="dica-gerar">Gerar roteiro</button>
+        <p id="dica-gerar" class="dica-gerar"></p>
+      </div>
+      <p id="aviso-gerar" class="mensagem erro" role="alert"></p>
+
+      <div id="resultado-gerar" class="resultado-gerar" tabindex="-1" aria-label="Roteiro gerado" hidden></div>
+    </section>
+
+    <section id="secao-meus-gerados">
+      <h2 class="secao-titulo">Meus roteiros gerados</h2>
+      <div id="lista-gerados" class="lista-gerados">Carregando...</div>
     </section>
 
     <section id="secao-assinatura">

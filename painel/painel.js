@@ -395,10 +395,366 @@ document.getElementById("botao-cancelar").addEventListener("click", async () => 
   botao.style.display = "none";
 });
 
+// ---------- Gerar roteiro sob demanda ----------
+const GERAR_ROTEIRO_URL = SUPABASE_URL + "/functions/v1/gerar-roteiro";
+const LIMITE_PADRAO = 30;
+const LIMITE_MUITAS_AREAS = 100;
+
+let julgadoSelecionado = null; // dedupe_hash
+let formatoSelecionado = null; // slug
+let tiposRoteiro = [];
+let usoMes = { usados: null, limite: LIMITE_PADRAO };
+let gerando = false;
+let historicoGerados = [];
+
+function limiteMensal() {
+  return (areasAssinadasAtual || []).length >= 10 ? LIMITE_MUITAS_AREAS : LIMITE_PADRAO;
+}
+
+function nomeFormato(slug) {
+  const t = tiposRoteiro.find((x) => x.slug === slug);
+  return t ? t.nome : slug;
+}
+
+// Início do mês corrente em America/Sao_Paulo (sem horário de verão desde 2019: -03:00).
+function inicioMesSaoPauloISO() {
+  const ym = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" })
+    .format(new Date()); // "2026-09"
+  return `${ym}-01T00:00:00-03:00`;
+}
+
+function formatarDataHoraBR(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function textoParaCopiar(r) {
+  return r.cta ? `${r.texto}\n\n${r.cta}` : r.texto;
+}
+
+function botaoCopiarTexto(getTexto) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "botao-secundario";
+  b.textContent = "Copiar texto";
+  let timer;
+  b.addEventListener("click", async () => {
+    let ok = true;
+    try { await navigator.clipboard.writeText(getTexto()); } catch { ok = false; }
+    b.textContent = ok ? "Copiado" : "Não foi possível copiar";
+    clearTimeout(timer);
+    timer = setTimeout(() => { b.textContent = "Copiar texto"; }, 2000);
+  });
+  return b;
+}
+
+function mostrarAvisoGerar(texto) {
+  document.getElementById("aviso-gerar").textContent = texto || "";
+}
+
+function atualizarContador() {
+  const { usados, limite } = usoMes;
+  const rotulo = document.getElementById("contador-uso");
+  const medidor = document.getElementById("medidor-uso");
+  if (usados === null) {
+    rotulo.textContent = `— de ${limite} neste mês`;
+    medidor.style.width = "0%";
+  } else {
+    rotulo.textContent = `${usados} de ${limite} neste mês`;
+    medidor.style.width = Math.min(100, Math.round((usados / limite) * 100)) + "%";
+  }
+  atualizarBotaoGerar();
+}
+
+function atualizarBotaoGerar() {
+  const botao = document.getElementById("botao-gerar");
+  const dica = document.getElementById("dica-gerar");
+  const esgotada = usoMes.usados !== null && usoMes.usados >= usoMes.limite;
+  let msg = "";
+  if (gerando) msg = "Gerando seu roteiro, isso pode levar alguns segundos.";
+  else if (esgotada) msg = "Você usou todos os roteiros deste mês. O contador zera no dia 1º.";
+  else if (!julgadoSelecionado && !formatoSelecionado) msg = "Escolha um julgado e um formato para continuar.";
+  else if (!julgadoSelecionado) msg = "Escolha um julgado para continuar.";
+  else if (!formatoSelecionado) msg = "Escolha um formato para continuar.";
+  dica.textContent = msg;
+  botao.disabled = gerando || esgotada || !julgadoSelecionado || !formatoSelecionado;
+  botao.textContent = gerando ? "Gerando…" : "Gerar roteiro";
+  botao.setAttribute("aria-busy", gerando ? "true" : "false");
+}
+
+// Cartão selecionável (rádio nativo: teclado e leitor de tela de graça). `extra` fica fora do label.
+function cartaoRadio(nome, valor, marcado, conteudo, aoMarcar, extra) {
+  const cartao = document.createElement("div");
+  cartao.className = "cartao-selecao";
+  const rotulo = document.createElement("label");
+  rotulo.className = "cartao-selecao-corpo";
+  const radio = document.createElement("input");
+  radio.type = "radio";
+  radio.name = nome;
+  radio.value = valor;
+  radio.checked = marcado;
+  radio.addEventListener("change", () => { if (radio.checked) aoMarcar(valor); });
+  rotulo.appendChild(radio);
+  rotulo.appendChild(conteudo);
+  cartao.appendChild(rotulo);
+  if (extra) cartao.appendChild(extra);
+  return cartao;
+}
+
+function renderizarJulgados(julgados) {
+  const lista = document.getElementById("lista-julgados");
+  lista.replaceChildren();
+  if (!julgados.some((j) => j.dedupe_hash === julgadoSelecionado)) julgadoSelecionado = null;
+
+  for (const j of julgados) {
+    const conteudo = criarEl("span", "cartao-conteudo", "");
+    const chips = criarEl("span", "roteiro-chips", "");
+    chips.appendChild(criarEl("span", "chip-area", rotuloArea(j.area)));
+    conteudo.appendChild(chips);
+    conteudo.appendChild(criarEl("span", "cartao-titulo", j.assunto || "Assunto não informado"));
+    const data = formatarDataBR(j.data_julgamento);
+    conteudo.appendChild(criarEl("span", "cartao-meta",
+      `${j.orgao_julgador || "Órgão não informado"} · ${data ? "julgado em " + data : "data não informada"}`));
+
+    let extra = null;
+    if (j.resumo) {
+      const resumo = criarEl("span", "julgado-resumo", j.resumo);
+      conteudo.appendChild(resumo);
+      if (j.resumo.length > 170) {
+        extra = criarEl("button", "botao-texto", "Ver mais");
+        extra.type = "button";
+        extra.setAttribute("aria-expanded", "false");
+        extra.addEventListener("click", () => {
+          const aberto = resumo.classList.toggle("expandido");
+          extra.setAttribute("aria-expanded", String(aberto));
+          extra.textContent = aberto ? "Ver menos" : "Ver mais";
+        });
+      }
+    }
+    lista.appendChild(cartaoRadio("julgado", j.dedupe_hash, j.dedupe_hash === julgadoSelecionado, conteudo,
+      (v) => { julgadoSelecionado = v; atualizarBotaoGerar(); }, extra));
+  }
+  atualizarBotaoGerar();
+}
+
+async function carregarJulgados() {
+  const lista = document.getElementById("lista-julgados");
+  const area = document.getElementById("filtro-julgados-area").value;
+  let q = supabaseClient
+    .from("julgados_disponiveis")
+    .select("dedupe_hash, area, assunto, resumo, orgao_julgador, data_julgamento, data_captura")
+    .order("data_captura", { ascending: false })
+    .limit(30);
+  if (area) q = q.eq("area", area);
+  const { data, error } = await q;
+  if (error || !data) {
+    lista.textContent = "Não foi possível carregar os julgados.";
+    return;
+  }
+  if (data.length === 0) {
+    lista.textContent = (areasAssinadasAtual || []).length === 0
+      ? "Você precisa de uma assinatura ativa para ver os julgados."
+      : "Nenhum julgado disponível para esta seleção nos últimos dias.";
+    return;
+  }
+  renderizarJulgados(data);
+}
+
+async function carregarFormatos() {
+  const lista = document.getElementById("lista-formatos");
+  const { data, error } = await supabaseClient
+    .from("tipos_roteiro_publico")
+    .select("slug, nome, descricao, ordem")
+    .order("ordem", { ascending: true });
+  if (error || !data) {
+    lista.textContent = "Não foi possível carregar os formatos.";
+    return;
+  }
+  if (data.length === 0) {
+    lista.textContent = "Nenhum formato disponível no momento.";
+    return;
+  }
+  tiposRoteiro = data;
+  lista.replaceChildren();
+  for (const t of data) {
+    const conteudo = criarEl("span", "cartao-conteudo", "");
+    conteudo.appendChild(criarEl("span", "cartao-titulo", t.nome));
+    if (t.descricao) conteudo.appendChild(criarEl("span", "cartao-meta", t.descricao));
+    lista.appendChild(cartaoRadio("formato", t.slug, t.slug === formatoSelecionado, conteudo,
+      (v) => { formatoSelecionado = v; atualizarBotaoGerar(); }));
+  }
+}
+
+async function carregarUsoMes() {
+  usoMes.limite = limiteMensal();
+  const { count, error } = await supabaseClient
+    .from("roteiros_usuario")
+    .select("id", { count: "exact", head: true })
+    .gte("criado_em", inicioMesSaoPauloISO());
+  usoMes.usados = error || count === null ? null : count;
+  atualizarContador();
+}
+
+// Cartão de roteiro gerado. `compacto`: texto recolhido com botão de expandir (histórico).
+function criarCartaoGerado(r, compacto) {
+  const item = document.createElement("article");
+  item.className = "item-roteiro item-gerado";
+
+  const cab = document.createElement("div");
+  cab.className = "roteiro-cabecalho";
+  const chips = document.createElement("div");
+  chips.className = "roteiro-chips";
+  chips.appendChild(criarEl("span", "chip-tom", nomeFormato(r.tipo_slug)));
+  if (r.area) chips.appendChild(criarEl("span", "chip-area", rotuloArea(r.area)));
+  cab.appendChild(chips);
+  cab.appendChild(criarEl("span", "roteiro-semana", formatarDataHoraBR(r.criado_em)));
+  item.appendChild(cab);
+
+  item.appendChild(criarEl("h3", "roteiro-titulo", r.assunto || "Assunto não informado"));
+
+  const bloco = document.createElement("section");
+  bloco.className = "roteiro-bloco";
+  const texto = criarEl("p", "texto-gerado" + (compacto ? " recolhido" : ""), r.texto);
+  bloco.appendChild(texto);
+  if (r.cta) {
+    const cta = document.createElement("div");
+    cta.className = "roteiro-cta";
+    cta.appendChild(criarEl("span", "roteiro-cta-rotulo", "Chamada para ação"));
+    cta.appendChild(criarEl("p", "texto-gerado", r.cta));
+    if (compacto) cta.hidden = true;
+    bloco.appendChild(cta);
+  }
+  item.appendChild(bloco);
+
+  const acoes = document.createElement("div");
+  acoes.className = "roteiro-acoes";
+  if (compacto) {
+    const alternar = criarEl("button", "botao-secundario", "Ver texto completo");
+    alternar.type = "button";
+    alternar.setAttribute("aria-expanded", "false");
+    alternar.addEventListener("click", () => {
+      const aberto = texto.classList.toggle("recolhido") === false;
+      alternar.setAttribute("aria-expanded", String(aberto));
+      alternar.textContent = aberto ? "Recolher" : "Ver texto completo";
+      const cta = bloco.querySelector(".roteiro-cta");
+      if (cta) cta.hidden = !aberto;
+    });
+    acoes.appendChild(alternar);
+  }
+  acoes.appendChild(botaoCopiarTexto(() => textoParaCopiar(r)));
+  item.appendChild(acoes);
+  return item;
+}
+
+function renderizarHistoricoGerados() {
+  const lista = document.getElementById("lista-gerados");
+  lista.replaceChildren();
+  if (historicoGerados.length === 0) {
+    lista.textContent = "Você ainda não gerou nenhum roteiro. Escolha um julgado e um formato acima para começar.";
+    return;
+  }
+  for (const r of historicoGerados) lista.appendChild(criarCartaoGerado(r, true));
+}
+
+async function carregarHistoricoGerados() {
+  const { data, error } = await supabaseClient
+    .from("roteiros_usuario")
+    .select("id, tipo_slug, area, assunto, orgao_julgador, data_julgamento, texto, cta, criado_em")
+    .order("criado_em", { ascending: false })
+    .limit(30);
+  if (error || !data) {
+    document.getElementById("lista-gerados").textContent = "Não foi possível carregar seu histórico.";
+    return;
+  }
+  historicoGerados = data;
+  renderizarHistoricoGerados();
+}
+
+async function gerarRoteiro() {
+  if (gerando || !julgadoSelecionado || !formatoSelecionado) return;
+  gerando = true;
+  mostrarAvisoGerar("");
+  atualizarBotaoGerar();
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { window.location.href = "login.html"; return; }
+
+    let resposta;
+    try {
+      resposta = await fetch(GERAR_ROTEIRO_URL, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + session.access_token,
+          apikey: SUPABASE_ANON_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ dedupe_hash: julgadoSelecionado, tipo_slug: formatoSelecionado }),
+      });
+    } catch {
+      mostrarAvisoGerar("Não foi possível conectar. Verifique sua internet e tente de novo.");
+      return;
+    }
+    const dados = await resposta.json().catch(() => ({}));
+
+    if (resposta.status === 401) {
+      await supabaseClient.auth.signOut();
+      window.location.href = "login.html";
+      return;
+    }
+    if (!resposta.ok || !dados.roteiro) {
+      mostrarAvisoGerar(typeof dados.erro === "string" && dados.erro
+        ? dados.erro : "Não foi possível gerar o roteiro agora. Tente de novo em instantes.");
+      if (dados.uso && Number.isFinite(dados.uso.usados)) {
+        usoMes = { usados: dados.uso.usados, limite: dados.uso.limite || usoMes.limite };
+        atualizarContador();
+      }
+      return;
+    }
+
+    const resultado = document.getElementById("resultado-gerar");
+    resultado.replaceChildren(criarCartaoGerado(dados.roteiro, false));
+    resultado.hidden = false;
+    resultado.focus({ preventScroll: true });
+    resultado.scrollIntoView({
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest",
+    });
+
+    historicoGerados = [dados.roteiro, ...historicoGerados.filter((x) => x.id !== dados.roteiro.id)].slice(0, 30);
+    renderizarHistoricoGerados();
+    if (dados.uso && Number.isFinite(dados.uso.usados)) {
+      usoMes = { usados: dados.uso.usados, limite: dados.uso.limite || usoMes.limite };
+    } else if (usoMes.usados !== null) {
+      usoMes.usados += 1;
+    }
+    atualizarContador();
+  } finally {
+    gerando = false;
+    atualizarBotaoGerar();
+  }
+}
+
+function carregarGerador() {
+  const select = document.getElementById("filtro-julgados-area");
+  select.appendChild(new Option("Todas as áreas", ""));
+  for (const area of areasAssinadasAtual || []) select.appendChild(new Option(rotuloArea(area), area));
+  select.addEventListener("change", carregarJulgados);
+  document.getElementById("botao-gerar").addEventListener("click", gerarRoteiro);
+  usoMes.limite = limiteMensal();
+  atualizarContador();
+  carregarJulgados();
+  carregarFormatos().then(carregarHistoricoGerados); // formatos primeiro: o histórico mostra o nome deles
+  carregarUsoMes();
+}
+
 iniciar().then(() => {
   if (advogadoAtual) {
     carregarRoteiros();
     carregarDetalhesAssinatura();
+    carregarGerador();
   }
 });
 

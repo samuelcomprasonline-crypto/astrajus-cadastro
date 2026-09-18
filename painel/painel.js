@@ -341,3 +341,26 @@ iniciar().then(() => {
     carregarDetalhesAssinatura();
   }
 });
+
+// Destaque do item ativo na navegação lateral (aditivo, tolera elementos ausentes).
+(function () {
+  const links = Array.from(document.querySelectorAll(".lateral nav a[href^='#']"));
+  const secoes = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+  if (!links.length || !secoes.length) return;
+  function marcar(secao) {
+    links.forEach((a) => {
+      const ativo = !!secao && a.getAttribute("href") === "#" + secao.id;
+      a.classList.toggle("ativo", ativo);
+      if (ativo) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+    });
+  }
+  marcar(secoes[0]);
+  if (!("IntersectionObserver" in window)) return;
+  const io = new IntersectionObserver((entradas) => {
+    entradas.forEach((e) => { if (e.isIntersecting) marcar(e.target); });
+  }, { rootMargin: "-25% 0px -65% 0px" });
+  secoes.forEach((s) => io.observe(s));
+  window.addEventListener("scroll", () => {
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) marcar(secoes[secoes.length - 1]);
+  }, { passive: true });
+})();

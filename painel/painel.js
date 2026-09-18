@@ -190,6 +190,10 @@ function criarEl(tag, classe, texto) {
   return el;
 }
 
+function textoNumeroJulgado(n) {
+  return n ? `Processo/recurso nº ${n}` : "Número não informado pela fonte";
+}
+
 const ROTULOS_TOM = { urgencia: "Urgência", storytelling: "Storytelling", prevencao: "Prevenção" };
 function rotuloTom(tom) {
   return ROTULOS_TOM[tom] || (tom.charAt(0).toUpperCase() + tom.slice(1));
@@ -520,9 +524,9 @@ function renderizarJulgados(julgados) {
       `${j.orgao_julgador || "Órgão não informado"} · ${data ? "julgado em " + data : "data não informada"}`));
 
     let extra = null;
+    let resumoEl = null;
     if (j.resumo) {
-      const resumo = criarEl("span", "julgado-resumo", j.resumo);
-      conteudo.appendChild(resumo);
+      const resumo = resumoEl = criarEl("span", "julgado-resumo", j.resumo);
       if (j.resumo.length > 170) {
         extra = criarEl("button", "botao-texto", "Ver mais");
         extra.type = "button";
@@ -534,6 +538,8 @@ function renderizarJulgados(julgados) {
         });
       }
     }
+    conteudo.appendChild(criarEl("span", "cartao-meta", textoNumeroJulgado(j.numero_julgado)));
+    if (j.resumo) conteudo.appendChild(resumoEl);
     lista.appendChild(cartaoRadio("julgado", j.dedupe_hash, j.dedupe_hash === julgadoSelecionado, conteudo,
       (v) => { julgadoSelecionado = v; atualizarBotaoGerar(); }, extra));
   }
@@ -545,7 +551,7 @@ async function carregarJulgados() {
   const area = document.getElementById("filtro-julgados-area").value;
   let q = supabaseClient
     .from("julgados_disponiveis")
-    .select("dedupe_hash, area, assunto, resumo, orgao_julgador, data_julgamento, data_captura")
+    .select("dedupe_hash, area, assunto, resumo, orgao_julgador, data_julgamento, numero_julgado, data_captura")
     .order("data_captura", { ascending: false })
     .limit(30);
   if (area) q = q.eq("area", area);
@@ -615,6 +621,24 @@ function criarCartaoGerado(r, compacto) {
 
   item.appendChild(criarEl("h3", "roteiro-titulo", r.assunto || "Assunto não informado"));
 
+  // Só mostra a referência quando o dado veio na resposta (o roteiro recém-gerado pode não trazê-lo;
+  // o texto já leva o bloco "REFERÊNCIA DO JULGADO" anexado pelo servidor).
+  const ref = [];
+  if (r.orgao_julgador !== undefined) ref.push(["Órgão julgador", r.orgao_julgador || "não informado na fonte"]);
+  if (r.data_julgamento !== undefined) ref.push(["Data do julgamento", formatarDataBR(r.data_julgamento) || "não informada na fonte"]);
+  if (r.numero_julgado !== undefined) ref.push(["Referência", textoNumeroJulgado(r.numero_julgado)]);
+  if (ref.length) {
+    const meta = document.createElement("dl");
+    meta.className = "roteiro-meta";
+    for (const [rotulo, valor] of ref) {
+      const par = document.createElement("div");
+      par.appendChild(criarEl("dt", "", rotulo + ":"));
+      par.appendChild(criarEl("dd", "", valor));
+      meta.appendChild(par);
+    }
+    item.appendChild(meta);
+  }
+
   const bloco = document.createElement("section");
   bloco.className = "roteiro-bloco";
   const texto = criarEl("p", "texto-gerado" + (compacto ? " recolhido" : ""), r.texto);
@@ -667,7 +691,7 @@ function renderizarHistoricoGerados() {
 async function carregarHistoricoGerados() {
   const { data, error } = await supabaseClient
     .from("roteiros_usuario")
-    .select("id, tipo_slug, area, assunto, orgao_julgador, data_julgamento, texto, cta, criado_em")
+    .select("id, tipo_slug, area, assunto, orgao_julgador, data_julgamento, numero_julgado, texto, cta, criado_em")
     .order("criado_em", { ascending: false })
     .limit(30);
   if (error || !data) {
@@ -700,7 +724,7 @@ async function gerarRoteiro() {
         body: JSON.stringify({ dedupe_hash: julgadoSelecionado, tipo_slug: formatoSelecionado }),
       });
     } catch {
-      mostrarAvisoGerar("Não foi possível conectar. Verifique sua internet e tente de novo.");
+      mostrarAvisoGerar("Não foi possível concluir o pedido. Recarregue a página e tente de novo.");
       return;
     }
     const dados = await resposta.json().catch(() => ({}));
@@ -712,7 +736,9 @@ async function gerarRoteiro() {
     }
     if (!resposta.ok || !dados.roteiro) {
       mostrarAvisoGerar(typeof dados.erro === "string" && dados.erro
-        ? dados.erro : "Não foi possível gerar o roteiro agora. Tente de novo em instantes.");
+        ? dados.erro : (resposta.status === 403
+          ? "Acesso não autorizado a esta função. Recarregue a página e tente de novo."
+          : "Não foi possível gerar o roteiro agora. Tente de novo em instantes; se persistir, recarregue a página."));
       if (dados.uso && Number.isFinite(dados.uso.usados)) {
         usoMes = { usados: dados.uso.usados, limite: dados.uso.limite || usoMes.limite };
         atualizarContador();

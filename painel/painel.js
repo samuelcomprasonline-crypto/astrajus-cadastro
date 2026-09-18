@@ -627,6 +627,10 @@ function criarCartaoGerado(r, compacto) {
     if (compacto) cta.hidden = true;
     bloco.appendChild(cta);
   }
+  const aviso = criarEl("p", "roteiro-aviso-fidelidade",
+    "Roteiro baseado apenas no resumo do julgado. Confira o julgado original antes de publicar.");
+  if (compacto) aviso.hidden = true; // no histórico só aparece com o item expandido
+  bloco.appendChild(aviso);
   item.appendChild(bloco);
 
   const acoes = document.createElement("div");
@@ -641,6 +645,7 @@ function criarCartaoGerado(r, compacto) {
       alternar.textContent = aberto ? "Recolher" : "Ver texto completo";
       const cta = bloco.querySelector(".roteiro-cta");
       if (cta) cta.hidden = !aberto;
+      aviso.hidden = !aberto;
     });
     acoes.appendChild(alternar);
   }

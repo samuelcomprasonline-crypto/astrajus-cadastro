@@ -331,6 +331,7 @@ body.auth {
 .roteiro-bloco h4 { margin: 0 0 8px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-suave); }
 .roteiro-bloco p { max-width: 75ch; white-space: pre-line; overflow-wrap: anywhere; }
 .roteiro-cta { margin-top: 16px; padding: 14px 18px; border-radius: 16px; background: var(--lavanda); }
+.roteiro-aviso-fidelidade { margin: 12px 0 0; font-size: 0.82rem; color: var(--texto-suave); }
 .roteiro-cta-rotulo { display: block; margin-bottom: 4px; font-size: 0.8rem; font-weight: 600; color: var(--indigo-hover); }
 .roteiro-acoes { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .roteiro-acoes label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 0.95rem; cursor: pointer; }

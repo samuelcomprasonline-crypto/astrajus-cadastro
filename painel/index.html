@@ -18,10 +18,10 @@
       <svg class="logo logo-nome" role="img" aria-label="Astra Jus"><use href="../assets/logo.svg#wordmark"/></svg>
     </div>
     <nav aria-label="Seções do painel">
-      <a href="#secao-perfil">Visão geral</a>
-      <a href="#secao-tendencias">Tendências</a>
-      <a href="#secao-roteiros">Roteiros</a>
-      <a href="#secao-gerar">Gerar roteiro</a>
+      <a href="#secao-perfil">Painel</a>
+      <a href="#secao-sugeridos" class="sub">Sugeridos</a>
+      <a href="#secao-tendencias" class="sub">Tendências</a>
+      <a href="#secao-meus-roteiros" class="sub">Meus roteiros</a>
       <a href="#assinatura">Assinatura</a>
     </nav>
     <button type="button" id="botao-sair">Sair</button>
@@ -29,84 +29,66 @@
 
   <main class="conteudo">
     <div id="visao-painel" class="visao">
-    <section id="secao-perfil">
-      <div class="hero">
-        <h1 id="nome-advogado">Carregando...</h1>
-        <p id="areas-advogado"></p>
-        <p id="status-assinatura"></p>
+
+    <section id="secao-perfil" aria-label="Seu perfil">
+      <div class="perfil">
+        <div class="perfil-topo">
+          <div>
+            <h1 id="nome-advogado">Carregando...</h1>
+            <p id="oab-advogado" class="perfil-oab"></p>
+          </div>
+          <span id="plano-advogado" class="selo-formato" hidden></span>
+        </div>
+        <ul id="areas-advogado" class="chips-areas" aria-label="Áreas assinadas"></ul>
+        <p id="status-assinatura" class="perfil-status"></p>
+        <dl class="indicadores">
+          <div class="indicador"><dt>Roteiros no mês</dt><dd id="ind-usados">—</dd></div>
+          <div class="indicador"><dt>Restam este mês</dt><dd id="ind-restam">—</dd></div>
+          <div class="indicador"><dt>Julgados sugeridos esta semana</dt><dd id="ind-semana">—</dd></div>
+        </dl>
       </div>
-      <div class="estatisticas">
-        <div class="estatistica"><span class="chip c1" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span><span class="rotulo">Roteiros disponíveis</span><span class="numero" id="stat-roteiros">—</span></div>
-        <div class="estatistica"><span class="chip c2" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></span><span class="rotulo">Já gravei</span><span class="numero" id="stat-gravados">—</span></div>
-        <div class="estatistica"><span class="chip c3" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span><span class="rotulo">Áreas ativas</span><span class="numero" id="stat-areas">—</span></div>
-        <div class="estatistica"><span class="chip c4" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></span><span class="rotulo">Semana atual</span><span class="numero" id="stat-semana">—</span></div>
+    </section>
+
+    <section id="secao-sugeridos">
+      <div class="secao-topo">
+        <div>
+          <h2 class="secao-titulo">Roteiros sugeridos</h2>
+          <p class="secao-intro">Julgados selecionados para você esta semana. Clique em Gerar roteiro e escolha o formato do seu plano.</p>
+        </div>
       </div>
+      <div id="filtro-julgados-area" class="filtro-chips" role="group" aria-label="Filtrar por área" hidden></div>
+      <p id="contador-julgados" class="julgados-contador" aria-live="polite"></p>
+      <div id="lista-julgados" class="grade-julgados">Carregando...</div>
+      <div class="julgados-mais"><button type="button" id="mais-julgados" class="botao-secundario" hidden>Mostrar mais</button></div>
+      <button type="button" id="mostrar-incompletos" class="botao-texto link-incompletos" hidden></button>
     </section>
 
     <section id="secao-tendencias">
-      <h2 class="secao-titulo">Em alta esta semana</h2>
-      <p class="secao-intro">Assuntos mais buscados no Google (Brasil, últimos 7 dias) dentro das áreas da sua assinatura — use como ideia de tema para os seus vídeos. Atualizado toda sexta-feira.</p>
+      <h2 class="secao-titulo">Tendências</h2>
+      <p class="secao-intro">Assuntos jurídicos mais pesquisados no Google esta semana, nas suas áreas. Use-os para escolher sobre o que gravar.</p>
       <div id="lista-trends">Carregando...</div>
     </section>
 
-    <section id="secao-roteiros">
-      <h2 class="secao-titulo">Seus roteiros</h2>
-      <div id="filtros-roteiros"></div>
-      <div id="lista-roteiros"></div>
-    </section>
-
-    <section id="secao-gerar">
-      <div class="gerar-cabecalho">
-        <div>
-          <h2 class="secao-titulo">Gerar roteiro</h2>
-          <p class="secao-intro">Escolha um julgado, escolha o formato e gere o roteiro.</p>
-        </div>
-        <div class="contador-uso">
-          <p id="contador-uso" aria-live="polite">— neste mês</p>
-          <div class="medidor" aria-hidden="true"><span id="medidor-uso"></span></div>
-        </div>
+    <section id="secao-meus-roteiros">
+      <h2 class="secao-titulo">Meus roteiros</h2>
+      <div class="abas" role="tablist" aria-label="Meus roteiros" hidden>
+        <button type="button" role="tab" id="aba-gerados" aria-selected="true" aria-controls="painel-gerados">Gerados por mim</button>
+        <button type="button" role="tab" id="aba-prontos" aria-selected="false" aria-controls="painel-prontos" tabindex="-1">Prontos da semana</button>
       </div>
 
-      <div class="gerar-fluxo">
-        <div class="gerar-passo">
-          <div class="gerar-passo-topo">
-            <h3><span class="num-passo" aria-hidden="true">1</span>Escolha o julgado</h3>
-            <select id="filtro-julgados-area" class="filtro-select" aria-label="Filtrar julgados por área"></select>
-          </div>
-          <p id="contador-julgados" class="julgados-contador" aria-live="polite"></p>
-          <div id="lista-julgados" class="grade-cartoes grade-julgados" role="radiogroup" aria-label="Julgados">Carregando...</div>
-          <div class="julgados-mais"><button type="button" id="mais-julgados" class="botao-secundario" hidden>Mostrar mais</button></div>
-          <button type="button" id="mostrar-incompletos" class="botao-texto link-incompletos" hidden></button>
+      <div id="painel-gerados" role="tabpanel" aria-labelledby="aba-gerados">
+        <div id="filtros-gerados" class="filtros-gerados" hidden>
+          <select id="filtro-gerados-formato" class="filtro-select" aria-label="Filtrar por formato"></select>
+          <select id="filtro-gerados-area" class="filtro-select" aria-label="Filtrar por área"></select>
+          <p id="contador-gerados" class="julgados-contador" aria-live="polite"></p>
         </div>
-
-        <div class="gerar-passo">
-          <div class="gerar-passo-topo"><h3><span class="num-passo" aria-hidden="true">2</span>Escolha o formato</h3></div>
-          <div id="lista-formatos" class="grade-cartoes grade-formatos" role="radiogroup" aria-label="Formato do roteiro">Carregando...</div>
-        </div>
-
-        <div class="gerar-passo gerar-barra">
-          <p id="aviso-gerar" class="mensagem erro" role="alert"></p>
-          <div class="gerar-barra-corpo">
-            <div class="gerar-resumo">
-              <p id="resumo-gerar" class="resumo-gerar"></p>
-              <p id="dica-gerar" class="dica-gerar"></p>
-            </div>
-            <button type="button" id="botao-gerar" class="botao-primario" disabled aria-describedby="dica-gerar">Gerar roteiro</button>
-          </div>
-        </div>
+        <div id="lista-gerados" class="lista-gerados">Carregando...</div>
       </div>
 
-      <div id="resultado-gerar" class="resultado-gerar" tabindex="-1" aria-label="Roteiro gerado" hidden></div>
-    </section>
-
-    <section id="secao-meus-gerados">
-      <h2 class="secao-titulo">Meus roteiros gerados</h2>
-      <div id="filtros-gerados" class="filtros-gerados" hidden>
-        <select id="filtro-gerados-formato" class="filtro-select" aria-label="Filtrar por formato"></select>
-        <select id="filtro-gerados-area" class="filtro-select" aria-label="Filtrar por área"></select>
-        <p id="contador-gerados" class="julgados-contador" aria-live="polite"></p>
+      <div id="painel-prontos" role="tabpanel" aria-labelledby="aba-prontos" hidden>
+        <div id="lista-prontos" class="lista-gerados"></div>
+        <div class="julgados-mais"><button type="button" id="mais-prontos" class="botao-secundario" hidden>Mostrar mais</button></div>
       </div>
-      <div id="lista-gerados" class="lista-gerados">Carregando...</div>
     </section>
     </div>
 

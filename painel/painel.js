@@ -10,6 +10,27 @@ const ROTULOS_AREA = {
 };
 function rotuloArea(slug) { return ROTULOS_AREA[slug] || slug; }
 
+function criarEl(tag, classe, texto) {
+  const el = document.createElement(tag);
+  if (classe) el.className = classe;
+  el.textContent = texto;
+  return el;
+}
+
+// Plano derivado da quantidade de áreas: 1 = Básico, 2–9 = Intermediário, 10 = Completo.
+const NOMES_PLANO = { 1: "Básico", 2: "Intermediário", 3: "Completo" };
+function nivelUsuario() {
+  const n = (areasAssinadasAtual || []).length;
+  return n >= 10 ? 3 : n >= 2 ? 2 : 1;
+}
+
+// Indicador: número grande + complemento em texto menor (sempre textContent).
+function definirIndicador(id, numero, complemento) {
+  const dd = document.getElementById(id);
+  dd.replaceChildren(criarEl("span", "indicador-numero", String(numero)));
+  if (complemento) dd.appendChild(document.createTextNode(" " + complemento));
+}
+
 async function iniciar() {
   sessaoAtual = await exigirSessao();
   if (!sessaoAtual) return;
@@ -24,9 +45,8 @@ async function iniciar() {
     return;
   }
   advogadoAtual = advogado;
-
-  document.getElementById("nome-advogado").textContent =
-    `Olá, ${advogado.nome} (OAB/${advogado.oab_uf} ${advogado.oab_numero})`;
+  document.getElementById("nome-advogado").textContent = advogado.nome;
+  document.getElementById("oab-advogado").textContent = `OAB/${advogado.oab_uf} ${advogado.oab_numero}`;
 
   const { data: assinatura } = await supabaseClient
     .from("assinaturas")
@@ -34,20 +54,25 @@ async function iniciar() {
     .in("status", ["ativa", "cancelamento_agendado"])
     .maybeSingle();
 
+  const status = document.getElementById("status-assinatura");
   if (!assinatura) {
-    document.getElementById("areas-advogado").textContent = "";
-    document.getElementById("status-assinatura").textContent =
-      "Nenhuma assinatura ativa. Seus roteiros ficam indisponíveis até reativar.";
+    status.textContent = "Nenhuma assinatura ativa. Seus roteiros ficam indisponíveis até reativar.";
     return;
   }
 
   areasAssinadasAtual = assinatura.areas;
-  document.getElementById("areas-advogado").textContent =
-    "Áreas assinadas: " + assinatura.areas.map(rotuloArea).join(", ");
-  document.getElementById("status-assinatura").textContent =
-    assinatura.status === "cancelamento_agendado"
-      ? `Assinatura cancelada — acesso liberado até ${assinatura.acesso_valido_ate}.`
-      : "Assinatura ativa.";
+  const plano = document.getElementById("plano-advogado");
+  plano.textContent = "Plano " + NOMES_PLANO[nivelUsuario()];
+  plano.hidden = false;
+  const chips = document.getElementById("areas-advogado");
+  for (const a of assinatura.areas) {
+    const li = document.createElement("li");
+    li.appendChild(criarEl("span", "chip-area", rotuloArea(a)));
+    chips.appendChild(li);
+  }
+  if (assinatura.status === "cancelamento_agendado") {
+    status.textContent = `Assinatura cancelada. Acesso liberado até ${formatarDataBR(assinatura.acesso_valido_ate) || assinatura.acesso_valido_ate}.`;
+  }
 }
 
 document.getElementById("botao-sair").addEventListener("click", async () => {
@@ -65,135 +90,6 @@ function semanaIsoAtual() {
   return `${data.getUTCFullYear()}-W${String(semana).padStart(2, "0")}`;
 }
 
-let todosRoteiros = [];
-let gravadosPorRoteiro = new Set();
-let areasEmAltaSemanaAtual = new Set();
-let termosTrendsSemana = [];
-
-function popularFiltros(roteiros) {
-  const areas = [...new Set(roteiros.map((r) => r.area))].sort();
-  const semanas = [...new Set(roteiros.map((r) => r.semana_iso))].sort().reverse();
-
-  const container = document.getElementById("filtros-roteiros");
-  container.innerHTML = "";
-
-  const selectArea = document.createElement("select");
-  selectArea.id = "filtro-area";
-  selectArea.appendChild(new Option("Todas as áreas", ""));
-  for (const area of areas) selectArea.appendChild(new Option(rotuloArea(area), area));
-
-  const selectSemana = document.createElement("select");
-  selectSemana.id = "filtro-semana";
-  selectSemana.appendChild(new Option("Todas as semanas", ""));
-  for (const semana of semanas) selectSemana.appendChild(new Option(semana, semana));
-
-  selectArea.addEventListener("change", aplicarFiltros);
-  selectSemana.addEventListener("change", aplicarFiltros);
-
-  container.appendChild(selectArea);
-  container.appendChild(selectSemana);
-}
-
-function aplicarFiltros() {
-  const areaEscolhida = document.getElementById("filtro-area").value;
-  const semanaEscolhida = document.getElementById("filtro-semana").value;
-  const filtrados = todosRoteiros.filter(
-    (r) => (!areaEscolhida || r.area === areaEscolhida)
-      && (!semanaEscolhida || r.semana_iso === semanaEscolhida),
-  );
-  renderizarRoteiros(filtrados);
-}
-
-async function carregarRoteiros() {
-  const { data: roteiros, error } = await supabaseClient
-    .from("roteiros_gerados")
-    .select("id, area, semana_iso, tom, cta, texto_completo, assunto, julgado_resumo, orgao_julgador, data_julgamento")
-    .order("semana_iso", { ascending: false });
-
-  if (error || !roteiros) {
-    document.getElementById("lista-roteiros").textContent = "Não foi possível carregar os roteiros.";
-    return;
-  }
-  todosRoteiros = roteiros;
-
-  const { data: progresso } = await supabaseClient
-    .from("roteiros_progresso")
-    .select("roteiro_id, gravado");
-  gravadosPorRoteiro = new Set((progresso || []).filter((p) => p.gravado).map((p) => p.roteiro_id));
-
-  const semanaAtual = semanaIsoAtual();
-  const { data: trends } = await supabaseClient
-    .from("trends_semanais")
-    .select("area, termo, posicao")
-    .eq("semana_iso", semanaAtual)
-    .order("posicao", { ascending: true });
-  areasEmAltaSemanaAtual = new Set((trends || []).map((t) => t.area));
-  termosTrendsSemana = trends || [];
-
-  popularFiltros(roteiros);
-  renderizarRoteiros(roteiros);
-  renderizarTrends();
-  atualizarEstatisticas();
-}
-
-function renderizarTrends() {
-  const container = document.getElementById("lista-trends");
-  container.innerHTML = "";
-
-  for (const area of areasAssinadasAtual || []) {
-    const termos = termosTrendsSemana
-      .filter((t) => t.area === area)
-      .sort((a, b) => a.posicao - b.posicao)
-      .slice(0, 3);
-    if (termos.length === 0) continue;
-
-    const grupo = document.createElement("div");
-    grupo.className = "grupo-trends";
-
-    const titulo = document.createElement("h3");
-    titulo.textContent = rotuloArea(area);
-    grupo.appendChild(titulo);
-
-    const lista = document.createElement("ol");
-    for (const t of termos) {
-      const li = document.createElement("li");
-      const posicao = document.createElement("span");
-      posicao.className = "trend-posicao";
-      posicao.textContent = String(t.posicao);
-      const termo = document.createElement("span");
-      termo.textContent = t.termo;
-      li.appendChild(posicao);
-      li.appendChild(termo);
-      lista.appendChild(li);
-    }
-    grupo.appendChild(lista);
-    container.appendChild(grupo);
-  }
-
-  if (!container.hasChildNodes()) {
-    container.textContent =
-      "Os termos em alta desta semana aparecem aqui assim que forem atualizados (toda sexta).";
-  }
-}
-
-function atualizarEstatisticas() {
-  document.getElementById("stat-roteiros").textContent = String(todosRoteiros.length);
-  document.getElementById("stat-gravados").textContent = String(gravadosPorRoteiro.size);
-  document.getElementById("stat-areas").textContent = String((areasAssinadasAtual || []).length);
-  document.getElementById("stat-semana").textContent = semanaIsoAtual();
-}
-
-function criarEl(tag, classe, texto) {
-  const el = document.createElement(tag);
-  if (classe) el.className = classe;
-  el.textContent = texto;
-  return el;
-}
-
-function textoNumeroJulgado(n) {
-  return n ? `Processo/recurso nº ${n}` : "Número não informado pela fonte";
-}
-
 const ROTULOS_TOM = { urgencia: "Urgência", storytelling: "Storytelling", prevencao: "Prevenção" };
 function rotuloTom(tom) {
   return ROTULOS_TOM[tom] || (tom.charAt(0).toUpperCase() + tom.slice(1));
@@ -205,115 +101,151 @@ function formatarDataBR(iso) {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
 }
 
-function renderizarRoteiros(roteiros) {
-  const container = document.getElementById("lista-roteiros");
-  container.innerHTML = "";
+// ---------- Tendências: assuntos jurídicos mais pesquisados no Google na semana, por área ----------
+let areasEmAltaSemanaAtual = new Set();
 
-  if (roteiros.length === 0) {
-    container.textContent = "Nenhum roteiro disponível ainda. O primeiro sai até o fim da semana.";
-    return;
-  }
+async function carregarTendencias() {
+  const container = document.getElementById("lista-trends");
+  const { data } = await supabaseClient
+    .from("trends_semanais")
+    .select("area, termo, posicao")
+    .eq("semana_iso", semanaIsoAtual())
+    .order("posicao", { ascending: true });
+  const trends = data || [];
+  areasEmAltaSemanaAtual = new Set(trends.map((t) => t.area));
+  container.replaceChildren();
 
-  const semanaAtual = semanaIsoAtual();
-  for (const roteiro of roteiros) {
-    const item = document.createElement("article");
-    item.className = "item-roteiro";
-
-    const cabecalho = document.createElement("div");
-    cabecalho.className = "roteiro-cabecalho";
-    const chips = document.createElement("div");
-    chips.className = "roteiro-chips";
-    chips.appendChild(criarEl("span", "chip-area", rotuloArea(roteiro.area)));
-    if (areasEmAltaSemanaAtual.has(roteiro.area) && roteiro.semana_iso === semanaAtual) {
-      chips.appendChild(criarEl("span", "selo-alta", "em alta"));
-    }
-    if (roteiro.tom) chips.appendChild(criarEl("span", "chip-tom", rotuloTom(roteiro.tom)));
-    cabecalho.appendChild(chips);
-    cabecalho.appendChild(criarEl("span", "roteiro-semana", `semana ${roteiro.semana_iso}`));
-    item.appendChild(cabecalho);
-
-    item.appendChild(criarEl("h3", "roteiro-titulo", roteiro.assunto || "Assunto não informado"));
-
-    const meta = document.createElement("dl");
-    meta.className = "roteiro-meta";
-    const itensMeta = [
-      ["Órgão julgador", roteiro.orgao_julgador || "não informado na fonte"],
-      ["Data do julgamento", formatarDataBR(roteiro.data_julgamento) || "não informada na fonte"],
-    ];
-    for (const [rotulo, valor] of itensMeta) {
-      const par = document.createElement("div");
-      par.appendChild(criarEl("dt", "", rotulo + ":"));
-      par.appendChild(criarEl("dd", "", valor));
-      meta.appendChild(par);
-    }
-    item.appendChild(meta);
-
-    if (roteiro.julgado_resumo) {
-      const blocoJulgado = document.createElement("section");
-      blocoJulgado.className = "roteiro-bloco";
-      blocoJulgado.appendChild(criarEl("h4", "", "O julgado"));
-      blocoJulgado.appendChild(criarEl("p", "", roteiro.julgado_resumo));
-      item.appendChild(blocoJulgado);
-    }
-
-    const blocoRoteiro = document.createElement("section");
-    blocoRoteiro.className = "roteiro-bloco";
-    blocoRoteiro.appendChild(criarEl("h4", "", "Roteiro"));
-    blocoRoteiro.appendChild(criarEl("p", "roteiro-texto", roteiro.texto_completo));
-    if (roteiro.cta) {
-      const cta = document.createElement("div");
-      cta.className = "roteiro-cta";
-      cta.appendChild(criarEl("span", "roteiro-cta-rotulo", "Chamada para ação"));
-      cta.appendChild(criarEl("p", "", roteiro.cta));
-      blocoRoteiro.appendChild(cta);
-    }
-    item.appendChild(blocoRoteiro);
-
-    const rodape = document.createElement("div");
-    rodape.className = "roteiro-acoes";
-
-    const botaoCopiar = document.createElement("button");
-    botaoCopiar.type = "button";
-    botaoCopiar.className = "botao-secundario";
-    botaoCopiar.textContent = "Copiar texto";
-    botaoCopiar.addEventListener("click", () => navigator.clipboard.writeText(
-      roteiro.cta ? `${roteiro.texto_completo}\n\n${roteiro.cta}` : roteiro.texto_completo,
-    ));
-    rodape.appendChild(botaoCopiar);
-
-    const rotuloGravado = document.createElement("label");
-    const checkboxGravado = document.createElement("input");
-    checkboxGravado.type = "checkbox";
-    checkboxGravado.checked = gravadosPorRoteiro.has(roteiro.id);
-    checkboxGravado.addEventListener("change", async () => {
-      const novoValor = checkboxGravado.checked;
-      const { error: erroProgresso } = await supabaseClient.from("roteiros_progresso").upsert({
-        advogado_id: advogadoAtual.id,
-        roteiro_id: roteiro.id,
-        gravado: novoValor,
-        marcado_em: new Date().toISOString(),
-      }, { onConflict: "advogado_id,roteiro_id" });
-
-      if (erroProgresso) {
-        checkboxGravado.checked = !novoValor;
-        alert("Não foi possível salvar. Tente novamente.");
-        return;
-      }
-
-      if (novoValor) {
-        gravadosPorRoteiro.add(roteiro.id);
-      } else {
-        gravadosPorRoteiro.delete(roteiro.id);
-      }
-      atualizarEstatisticas();
+  for (const area of areasAssinadasAtual || []) {
+    const termos = trends.filter((t) => t.area === area).sort((a, b) => a.posicao - b.posicao).slice(0, 5);
+    if (termos.length === 0) continue;
+    const grupo = document.createElement("article");
+    grupo.className = "grupo-trends";
+    grupo.appendChild(criarEl("h3", "", rotuloArea(area)));
+    const lista = document.createElement("ol");
+    termos.forEach((t, i) => {
+      const li = document.createElement("li");
+      li.appendChild(criarEl("span", "trend-posicao", String(i + 1)));
+      li.appendChild(criarEl("span", "trend-termo", t.termo));
+      if (i === 0) li.appendChild(criarEl("span", "selo-alta", "em alta"));
+      lista.appendChild(li);
     });
-    rotuloGravado.appendChild(checkboxGravado);
-    rotuloGravado.appendChild(document.createTextNode(" já gravei"));
-    rodape.appendChild(rotuloGravado);
-    item.appendChild(rodape);
-
-    container.appendChild(item);
+    grupo.appendChild(lista);
+    container.appendChild(grupo);
   }
+  if (!container.hasChildNodes()) {
+    container.textContent = "Os assuntos em alta desta semana aparecem aqui assim que forem atualizados (toda sexta).";
+  }
+}
+
+// ---------- Meus roteiros › Prontos da semana (roteiros_gerados), no mesmo formato compacto ----------
+const PRONTOS_POR_PAGINA = 6;
+let prontos = [];
+let gravadosPorRoteiro = new Set();
+let limiteProntos = PRONTOS_POR_PAGINA;
+let idCartaoPronto = 0;
+
+function criarCartaoPronto(r) {
+  const id = "pronto-corpo-" + (++idCartaoPronto);
+  const item = document.createElement("article");
+  item.className = "rot-cartao rot-compacto item-gerado";
+
+  const cab = document.createElement("header");
+  const chips = criarEl("div", "roteiro-chips", "");
+  chips.appendChild(criarEl("span", "chip-area", rotuloArea(r.area)));
+  if (areasEmAltaSemanaAtual.has(r.area) && r.semana_iso === semanaIsoAtual()) chips.appendChild(criarEl("span", "selo-alta", "em alta"));
+  if (r.tom) chips.appendChild(criarEl("span", "chip-tom", rotuloTom(r.tom)));
+  cab.appendChild(chips);
+  cab.appendChild(criarEl("span", "roteiro-semana", `Semana ${r.semana_iso}`));
+  item.appendChild(cab);
+
+  item.appendChild(criarEl("h4", "rot-assunto", r.assunto || "Assunto não informado"));
+  item.appendChild(criarEl("p", "rot-linha-meta", `${r.orgao_julgador || "—"} · Julgado em ${formatarDataBR(r.data_julgamento) || "—"}`));
+
+  const detalhe = document.createElement("div");
+  detalhe.id = id;
+  detalhe.hidden = true;
+  const dado = { texto: r.texto_completo, cta: r.cta };
+  detalhe.appendChild(corpoRoteiro(dado));
+  item.appendChild(detalhe);
+
+  const acoes = criarEl("div", "roteiro-acoes", "");
+  const alternar = criarEl("button", "botao-secundario", "Ver roteiro");
+  alternar.type = "button";
+  alternar.setAttribute("aria-expanded", "false");
+  alternar.setAttribute("aria-controls", id);
+  alternar.addEventListener("click", () => {
+    detalhe.hidden = !detalhe.hidden;
+    alternar.setAttribute("aria-expanded", String(!detalhe.hidden));
+    alternar.textContent = detalhe.hidden ? "Ver roteiro" : "Recolher";
+  });
+  acoes.appendChild(alternar);
+  acoes.appendChild(botaoCopiar("Copiar", () => textoBruto(dado)));
+
+  const rotuloGravado = document.createElement("label");
+  rotuloGravado.className = "marcar-gravado";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = gravadosPorRoteiro.has(r.id);
+  cb.addEventListener("change", async () => {
+    const novo = cb.checked;
+    const { error } = await supabaseClient.from("roteiros_progresso").upsert({
+      advogado_id: advogadoAtual.id, roteiro_id: r.id, gravado: novo, marcado_em: new Date().toISOString(),
+    }, { onConflict: "advogado_id,roteiro_id" });
+    if (error) { cb.checked = !novo; alert("Não foi possível salvar. Tente novamente."); return; }
+    if (novo) gravadosPorRoteiro.add(r.id); else gravadosPorRoteiro.delete(r.id);
+  });
+  rotuloGravado.appendChild(cb);
+  rotuloGravado.appendChild(document.createTextNode(" Já gravei"));
+  acoes.appendChild(rotuloGravado);
+  item.appendChild(acoes);
+  return item;
+}
+
+function renderizarProntos() {
+  const lista = document.getElementById("lista-prontos");
+  lista.replaceChildren();
+  const grupo = criarEl("section", "grupo-gerados", "");
+  for (const r of prontos.slice(0, limiteProntos)) grupo.appendChild(criarCartaoPronto(r));
+  lista.appendChild(grupo);
+  document.getElementById("mais-prontos").hidden = limiteProntos >= prontos.length;
+}
+
+async function carregarProntos() {
+  const { data, error } = await supabaseClient
+    .from("roteiros_gerados")
+    .select("id, area, semana_iso, tom, cta, texto_completo, assunto, orgao_julgador, data_julgamento")
+    .order("semana_iso", { ascending: false });
+  if (error || !data || data.length === 0) return;
+  const { data: progresso } = await supabaseClient.from("roteiros_progresso").select("roteiro_id, gravado");
+  gravadosPorRoteiro = new Set((progresso || []).filter((p) => p.gravado).map((p) => p.roteiro_id));
+  prontos = data;
+  renderizarProntos();
+  document.querySelector(".abas").hidden = false;
+}
+
+function configurarAbas() {
+  const abas = [...document.querySelectorAll(".abas [role=tab]")];
+  const selecionar = (aba, focar) => {
+    for (const a of abas) {
+      const ativa = a === aba;
+      a.setAttribute("aria-selected", String(ativa));
+      a.tabIndex = ativa ? 0 : -1;
+      document.getElementById(a.getAttribute("aria-controls")).hidden = !ativa;
+    }
+    if (focar) aba.focus();
+  };
+  for (const a of abas) {
+    a.addEventListener("click", () => selecionar(a, false));
+    a.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      selecionar(abas[(abas.indexOf(a) + (e.key === "ArrowRight" ? 1 : abas.length - 1)) % abas.length], true);
+    });
+  }
+  document.getElementById("mais-prontos").addEventListener("click", () => {
+    limiteProntos += PRONTOS_POR_PAGINA;
+    renderizarProntos();
+  });
 }
 
 const CANCELAR_ASSINATURA_URL =
@@ -399,271 +331,6 @@ document.getElementById("botao-cancelar").addEventListener("click", async () => 
   botao.style.display = "none";
 });
 
-// ---------- Gerar roteiro sob demanda ----------
-const GERAR_ROTEIRO_URL = SUPABASE_URL + "/functions/v1/gerar-roteiro";
-const LIMITE_PADRAO = 30;
-const LIMITE_MUITAS_AREAS = 100;
-const LIMITE_HISTORICO = 100;
-const AVISO_FIDELIDADE = "Roteiro baseado apenas no resumo do julgado. Confira o julgado original antes de publicar.";
-const NAO_INFORMADO = "não informado pela fonte";
-
-let julgadoSelecionado = null; // dedupe_hash
-let formatoSelecionado = null; // slug
-let tiposRoteiro = [];
-let usoMes = { usados: null, limite: LIMITE_PADRAO };
-let gerando = false;
-let historicoGerados = [];
-
-function limiteMensal() {
-  return (areasAssinadasAtual || []).length >= 10 ? LIMITE_MUITAS_AREAS : LIMITE_PADRAO;
-}
-
-function nomeFormato(slug) {
-  const t = tiposRoteiro.find((x) => x.slug === slug);
-  return t ? t.nome : slug;
-}
-
-// Início do mês corrente em America/Sao_Paulo (sem horário de verão desde 2019: -03:00).
-function inicioMesSaoPauloISO() {
-  const ym = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" })
-    .format(new Date()); // "2026-09"
-  return `${ym}-01T00:00:00-03:00`;
-}
-
-function formatarDataHoraBR(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  return d.toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
-}
-
-function mostrarAvisoGerar(texto) {
-  document.getElementById("aviso-gerar").textContent = texto || "";
-}
-
-function julgadoEscolhido() {
-  return todosJulgados.find((j) => j.dedupe_hash === julgadoSelecionado) || null;
-}
-
-function atualizarContador() {
-  const { usados, limite } = usoMes;
-  const rotulo = document.getElementById("contador-uso");
-  const medidor = document.getElementById("medidor-uso");
-  if (usados === null) {
-    rotulo.textContent = `— de ${limite} neste mês`;
-    medidor.style.width = "0%";
-  } else {
-    rotulo.textContent = `${usados} de ${limite} neste mês`;
-    medidor.style.width = Math.min(100, Math.round((usados / limite) * 100)) + "%";
-  }
-  atualizarBotaoGerar();
-}
-
-function atualizarBotaoGerar() {
-  const botao = document.getElementById("botao-gerar");
-  const dica = document.getElementById("dica-gerar");
-  const esgotada = usoMes.usados !== null && usoMes.usados >= usoMes.limite;
-  const j = julgadoEscolhido();
-  document.getElementById("resumo-gerar").textContent =
-    `Julgado: ${j ? (j.assunto || "assunto não informado") : "nenhum escolhido"} · ` +
-    `Formato: ${formatoSelecionado ? nomeFormato(formatoSelecionado) : "nenhum escolhido"}`;
-  let msg = "";
-  if (gerando) msg = "Gerando… leva alguns segundos.";
-  else if (esgotada) msg = "Você usou todos os roteiros deste mês. O contador zera no dia 1º.";
-  else if (!julgadoSelecionado && !formatoSelecionado) msg = "Escolha um julgado (passo 1) e um formato (passo 2) para continuar.";
-  else if (!julgadoSelecionado) msg = "Escolha um julgado (passo 1) para continuar.";
-  else if (!formatoSelecionado) msg = "Escolha um formato (passo 2) para continuar.";
-  dica.textContent = msg;
-  botao.disabled = gerando || esgotada || !julgadoSelecionado || !formatoSelecionado;
-  botao.textContent = gerando ? "Gerando…" : "Gerar roteiro";
-  botao.setAttribute("aria-busy", gerando ? "true" : "false");
-}
-
-// Cartão selecionável (rádio nativo: teclado e leitor de tela de graça). `extra` fica fora do label.
-function cartaoRadio(nome, valor, marcado, conteudo, aoMarcar, extra) {
-  const cartao = document.createElement("div");
-  cartao.className = "cartao-selecao";
-  const rotulo = document.createElement("label");
-  rotulo.className = "cartao-selecao-corpo";
-  const radio = document.createElement("input");
-  radio.type = "radio";
-  radio.name = nome;
-  radio.value = valor;
-  radio.checked = marcado;
-  radio.addEventListener("change", () => { if (radio.checked) aoMarcar(valor); });
-  rotulo.appendChild(radio);
-  rotulo.appendChild(conteudo);
-  cartao.appendChild(rotulo);
-  if (extra) cartao.appendChild(extra);
-  return cartao;
-}
-
-// ---- Passo 1: lista de julgados (filtro de área, incompletos opcionais e paginação, tudo no cliente) ----
-const JULGADOS_POR_PAGINA = 9;
-const RESUMO_CURTO = 320;
-const MSG_SEM_JULGADOS_COMPLETOS =
-  "Ainda não há julgados confirmados (com número e data) nas suas áreas. Novos julgados chegam toda semana.";
-let todosJulgados = [];
-let filtradosJulgados = [];
-let exibidosJulgados = 0;
-let limiteJulgados = JULGADOS_POR_PAGINA;
-let incluirIncompletos = false;
-
-function julgadoCompleto(j) {
-  return !!(j.numero_julgado && String(j.numero_julgado).trim()) && !!formatarDataBR(j.data_julgamento);
-}
-
-// Data de julgamento desc (nulos por último), depois data_captura desc.
-function compararJulgados(a, b) {
-  const da = formatarDataBR(a.data_julgamento) ? a.data_julgamento : "";
-  const db = formatarDataBR(b.data_julgamento) ? b.data_julgamento : "";
-  if (da !== db) return !da ? 1 : !db ? -1 : (da < db ? 1 : -1);
-  const ca = a.data_captura || "", cb = b.data_captura || "";
-  return ca === cb ? 0 : (ca < cb ? 1 : -1);
-}
-
-// "Órgão · Processo/recurso nº X · Julgado em dd/mm/aaaa" (ausentes = "—")
-function linhaMeta(r) {
-  const num = r.numero_julgado && String(r.numero_julgado).trim();
-  return `${r.orgao_julgador || "—"} · Processo/recurso nº ${num || "—"} · Julgado em ${formatarDataBR(r.data_julgamento) || "—"}`;
-}
-
-function criarCartaoJulgado(j) {
-  const conteudo = criarEl("span", "cartao-conteudo", "");
-  const selos = criarEl("span", "roteiro-chips", "");
-  selos.appendChild(criarEl("span", "chip-area", rotuloArea(j.area)));
-  if (!julgadoCompleto(j)) selos.appendChild(criarEl("span", "julgado-incompleto", "Dados incompletos"));
-  conteudo.appendChild(selos);
-  const titulo = criarEl("span", "cartao-titulo", j.assunto || "Assunto não informado");
-  titulo.id = `julgado-titulo-${j._i}`;
-  conteudo.appendChild(titulo);
-
-  let extra = null;
-  if (j.resumo) {
-    const resumo = criarEl("span", "julgado-resumo", j.resumo);
-    conteudo.appendChild(resumo);
-    if (j.resumo.length > RESUMO_CURTO) {
-      resumo.classList.add("truncado");
-      extra = criarEl("button", "botao-texto", "Ver mais");
-      extra.type = "button";
-      extra.setAttribute("aria-expanded", "false");
-      extra.addEventListener("click", () => {
-        const aberto = resumo.classList.toggle("expandido");
-        extra.setAttribute("aria-expanded", String(aberto));
-        extra.textContent = aberto ? "Ver menos" : "Ver mais";
-      });
-    }
-  }
-  const meta = criarEl("span", "julgado-meta", linhaMeta(j));
-  meta.id = `julgado-meta-${j._i}`;
-  conteudo.appendChild(meta);
-
-  const cartao = cartaoRadio("julgado", j.dedupe_hash, j.dedupe_hash === julgadoSelecionado, conteudo,
-    (v) => { julgadoSelecionado = v; atualizarBotaoGerar(); }, extra);
-  const radio = cartao.querySelector("input");
-  radio.setAttribute("aria-labelledby", titulo.id); // nome curto; os dados vão como descrição
-  radio.setAttribute("aria-describedby", meta.id);
-  return cartao;
-}
-
-// Desenha filtradosJulgados até limiteJulgados. `reiniciar` refaz a lista; senão só acrescenta o que falta.
-function desenharJulgados(reiniciar) {
-  const lista = document.getElementById("lista-julgados");
-  if (reiniciar) { lista.replaceChildren(); exibidosJulgados = 0; }
-  if (filtradosJulgados.length === 0) {
-    lista.textContent = MSG_SEM_JULGADOS_COMPLETOS;
-  } else {
-    const primeiroNovo = exibidosJulgados;
-    for (const j of filtradosJulgados.slice(exibidosJulgados, limiteJulgados)) lista.appendChild(criarCartaoJulgado(j));
-    exibidosJulgados = Math.min(limiteJulgados, filtradosJulgados.length);
-    if (!reiniciar) {
-      const novo = lista.querySelectorAll(".cartao-selecao")[primeiroNovo];
-      if (novo) novo.querySelector("input").focus();
-    }
-  }
-  const n = filtradosJulgados.length;
-  document.getElementById("contador-julgados").textContent = n === 0 ? "" :
-    `${n} julgado${n === 1 ? "" : "s"}` + (exibidosJulgados < n ? ` · mostrando ${exibidosJulgados}` : "");
-  document.getElementById("mais-julgados").hidden = exibidosJulgados >= n;
-  atualizarBotaoGerar();
-}
-
-function atualizarJulgados() {
-  const area = document.getElementById("filtro-julgados-area").value;
-  const base = todosJulgados.filter((j) => !area || j.area === area);
-  const incompletos = base.filter((j) => !julgadoCompleto(j)).length;
-  filtradosJulgados = (incluirIncompletos ? base : base.filter(julgadoCompleto)).sort(compararJulgados);
-  limiteJulgados = JULGADOS_POR_PAGINA;
-  if (!filtradosJulgados.some((j) => j.dedupe_hash === julgadoSelecionado)) julgadoSelecionado = null;
-
-  const link = document.getElementById("mostrar-incompletos");
-  link.hidden = incompletos === 0;
-  link.textContent = incluirIncompletos
-    ? "Ocultar julgados sem número ou data"
-    : `Ver também julgados sem número ou data (${incompletos})`;
-  desenharJulgados(true);
-}
-
-async function carregarJulgados() {
-  const lista = document.getElementById("lista-julgados");
-  const { data, error } = await supabaseClient
-    .from("julgados_disponiveis")
-    .select("dedupe_hash, area, assunto, resumo, orgao_julgador, data_julgamento, numero_julgado, data_captura")
-    .order("data_julgamento", { ascending: false, nullsFirst: false })
-    .order("data_captura", { ascending: false })
-    .limit(200);
-  if (error || !data) {
-    lista.textContent = "Não foi possível carregar os julgados.";
-    return;
-  }
-  if (data.length === 0) {
-    lista.textContent = (areasAssinadasAtual || []).length === 0
-      ? "Você precisa de uma assinatura ativa para ver os julgados."
-      : MSG_SEM_JULGADOS_COMPLETOS;
-    return;
-  }
-  todosJulgados = data.map((j, i) => ({ ...j, _i: i }));
-  atualizarJulgados();
-}
-
-// ---- Passo 2: formatos ----
-async function carregarFormatos() {
-  const lista = document.getElementById("lista-formatos");
-  const { data, error } = await supabaseClient
-    .from("tipos_roteiro_publico")
-    .select("slug, nome, descricao, ordem")
-    .order("ordem", { ascending: true });
-  if (error || !data) {
-    lista.textContent = "Não foi possível carregar os formatos.";
-    return;
-  }
-  if (data.length === 0) {
-    lista.textContent = "Nenhum formato disponível no momento.";
-    return;
-  }
-  tiposRoteiro = data;
-  lista.replaceChildren();
-  for (const t of data) {
-    const conteudo = criarEl("span", "cartao-conteudo", "");
-    conteudo.appendChild(criarEl("span", "cartao-titulo", t.nome));
-    if (t.descricao) conteudo.appendChild(criarEl("span", "cartao-meta", t.descricao));
-    lista.appendChild(cartaoRadio("formato", t.slug, t.slug === formatoSelecionado, conteudo,
-      (v) => { formatoSelecionado = v; atualizarBotaoGerar(); }));
-  }
-  atualizarBotaoGerar();
-}
-
-async function carregarUsoMes() {
-  usoMes.limite = limiteMensal();
-  const { count, error } = await supabaseClient
-    .from("roteiros_usuario")
-    .select("id", { count: "exact", head: true })
-    .gte("criado_em", inicioMesSaoPauloISO());
-  usoMes.usados = error || count === null ? null : count;
-  atualizarContador();
-}
-
 // ---- Roteiro renderizado como o cartão de exemplo da página de venda ----
 // Rótulo em MAIÚSCULAS + ":" no início da linha, opcionalmente com um trecho entre parênteses
 // (ex.: "REFERÊNCIA DO JULGADO (para legenda/conferência):"). Tolera **negrito** de markdown.
@@ -694,6 +361,417 @@ function parsearRoteiro(texto) {
   return secoes.some((s) => s.rotulo) ? secoes : [];
 }
 
+function botaoCopiar(rotulo, getTexto, classe) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = classe || "botao-secundario";
+  b.textContent = rotulo;
+  let timer;
+  b.addEventListener("click", async () => {
+    let ok = true;
+    try { await navigator.clipboard.writeText(getTexto()); } catch { ok = false; }
+    b.textContent = ok ? "Copiado" : "Não foi possível copiar";
+    clearTimeout(timer);
+    timer = setTimeout(() => { b.textContent = rotulo; }, 2000);
+  });
+  return b;
+}
+
+function diaSaoPaulo(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d); // yyyy-mm-dd
+}
+
+// Segunda-feira da semana de `hoje` (yyyy-mm-dd), sem fuso: só aritmética de calendário.
+function inicioSemanaChave(hoje) {
+  const [a, m, d] = hoje.split("-").map(Number);
+  const t = new Date(Date.UTC(a, m - 1, d));
+  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7));
+  return t.toISOString().slice(0, 10);
+}
+
+function periodoDoRoteiro(r, hoje, semana) {
+  const dia = diaSaoPaulo(r.criado_em);
+  if (dia === hoje) return "Hoje";
+  return dia && dia >= semana ? "Esta semana" : "Anteriores";
+}
+
+function preencherFiltroGerados(select, todos, valores, rotular) {
+  const atual = select.value;
+  select.replaceChildren(new Option(todos, ""));
+  for (const v of valores) select.appendChild(new Option(rotular(v), v));
+  select.value = [...select.options].some((o) => o.value === atual) ? atual : "";
+}
+
+
+// ---------- Uso mensal ----------
+const GERAR_ROTEIRO_URL = SUPABASE_URL + "/functions/v1/gerar-roteiro";
+const LIMITE_PADRAO = 30;
+const LIMITE_MUITAS_AREAS = 100;
+const LIMITE_HISTORICO = 100;
+const AVISO_FIDELIDADE = "Roteiro baseado apenas no resumo do julgado. Confira o julgado original antes de publicar.";
+const NAO_INFORMADO = "não informado pela fonte";
+
+let tiposRoteiro = [];
+let usoMes = { usados: null, limite: LIMITE_PADRAO };
+let historicoGerados = [];
+
+function limiteMensal() {
+  return (areasAssinadasAtual || []).length >= 10 ? LIMITE_MUITAS_AREAS : LIMITE_PADRAO;
+}
+function esgotada() { return usoMes.usados !== null && usoMes.usados >= usoMes.limite; }
+
+function nomeFormato(slug) {
+  const t = tiposRoteiro.find((x) => x.slug === slug);
+  return t ? t.nome : slug;
+}
+
+// Início do mês corrente em America/Sao_Paulo (sem horário de verão desde 2019: -03:00).
+function inicioMesSaoPauloISO() {
+  const ym = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" })
+    .format(new Date()); // "2026-09"
+  return `${ym}-01T00:00:00-03:00`;
+}
+
+function formatarDataHoraBR(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function atualizarContador() {
+  const { usados, limite } = usoMes;
+  definirIndicador("ind-usados", usados === null ? "—" : usados, `de ${limite} usados`);
+  definirIndicador("ind-restam", usados === null ? "—" : Math.max(0, limite - usados), "");
+  if (aberto && aberto.atualizarUI) aberto.atualizarUI();
+}
+
+async function carregarUsoMes() {
+  usoMes.limite = limiteMensal();
+  const { count, error } = await supabaseClient
+    .from("roteiros_usuario")
+    .select("id", { count: "exact", head: true })
+    .gte("criado_em", inicioMesSaoPauloISO());
+  usoMes.usados = error || count === null ? null : count;
+  atualizarContador();
+}
+
+// Julgados captados nesta semana (segunda a domingo, America/Sao_Paulo), contagem real da view.
+async function carregarSemana() {
+  const inicio = `${inicioSemanaChave(diaSaoPaulo(new Date().toISOString()))}T00:00:00-03:00`;
+  const { count, error } = await supabaseClient
+    .from("julgados_disponiveis")
+    .select("dedupe_hash", { count: "exact", head: true })
+    .gte("data_captura", inicio);
+  definirIndicador("ind-semana", error || count === null ? "—" : count, "");
+}
+
+// ---------- Formatos (nivel_minimo: 1 = Básico, 2 = Intermediário, 3 = Completo) ----------
+async function carregarFormatos() {
+  const { data } = await supabaseClient
+    .from("tipos_roteiro_publico")
+    .select("slug, nome, descricao, ordem, nivel_minimo")
+    .order("ordem", { ascending: true });
+  tiposRoteiro = data || [];
+}
+
+function dicaPlano(nivel) {
+  return nivel >= 3 ? "Disponível no plano Completo" : "Disponível no plano Intermediário ou Completo";
+}
+
+// Cartão selecionável (rádio nativo: teclado e leitor de tela de graça).
+function cartaoRadio(nome, valor, marcado, conteudo, aoMarcar, bloqueado) {
+  const cartao = document.createElement("div");
+  cartao.className = "cartao-selecao" + (bloqueado ? " bloqueado" : "");
+  const rotulo = document.createElement("label");
+  rotulo.className = "cartao-selecao-corpo";
+  const radio = document.createElement("input");
+  radio.type = "radio";
+  radio.name = nome;
+  radio.value = valor;
+  radio.checked = marcado;
+  radio.disabled = !!bloqueado;
+  radio.addEventListener("change", () => { if (radio.checked) aoMarcar(valor); });
+  rotulo.appendChild(radio);
+  rotulo.appendChild(conteudo);
+  cartao.appendChild(rotulo);
+  return cartao;
+}
+
+// ---------- Roteiros sugeridos: cartões de julgados (filtro de área, incompletos opcionais, paginação no cliente) ----------
+const JULGADOS_POR_PAGINA = 6;
+const MSG_SEM_JULGADOS_COMPLETOS =
+  "Ainda não há julgados confirmados (com número e data) nas suas áreas. Novos julgados chegam toda semana.";
+let todosJulgados = [];
+let filtradosJulgados = [];
+let exibidosJulgados = 0;
+let limiteJulgados = JULGADOS_POR_PAGINA;
+let incluirIncompletos = false;
+let areaFiltro = "";
+let aberto = null; // { hash, formato, erro, gerando, resultado, atualizarUI }
+const cartoes = new Map(); // dedupe_hash -> elemento
+
+function julgadoCompleto(j) {
+  return !!(j.numero_julgado && String(j.numero_julgado).trim()) && !!formatarDataBR(j.data_julgamento);
+}
+
+// Data de julgamento desc (nulos por último), depois data_captura desc.
+function compararJulgados(a, b) {
+  const da = formatarDataBR(a.data_julgamento) ? a.data_julgamento : "";
+  const db = formatarDataBR(b.data_julgamento) ? b.data_julgamento : "";
+  if (da !== db) return !da ? 1 : !db ? -1 : (da < db ? 1 : -1);
+  const ca = a.data_captura || "", cb = b.data_captura || "";
+  return ca === cb ? 0 : (ca < cb ? 1 : -1);
+}
+
+// "Órgão · Processo/recurso nº X · Julgado em dd/mm/aaaa" (ausentes = "—")
+function linhaMeta(r) {
+  const num = r.numero_julgado && String(r.numero_julgado).trim();
+  return `${r.orgao_julgador || "—"} · Processo/recurso nº ${num || "—"} · Julgado em ${formatarDataBR(r.data_julgamento) || "—"}`;
+}
+
+// Ficha em grade (mesma anatomia do exemplo da página de venda).
+function fichaRoteiro(itens) {
+  const dl = document.createElement("dl");
+  dl.className = "rot-meta";
+  for (const [rotulo, valor, cheio] of itens) {
+    const par = document.createElement("div");
+    if (cheio) par.className = "cheio";
+    par.appendChild(criarEl("dt", "", rotulo));
+    par.appendChild(criarEl("dd", "", valor || NAO_INFORMADO));
+    dl.appendChild(par);
+  }
+  return dl;
+}
+
+function fichaJulgado(j) {
+  const num = j.numero_julgado && String(j.numero_julgado).trim();
+  return fichaRoteiro([
+    ["Assunto", j.assunto, true],
+    ["Área", rotuloArea(j.area)],
+    ["Órgão julgador", j.orgao_julgador],
+    ["Data do julgamento", formatarDataBR(j.data_julgamento)],
+    ["Processo/recurso nº", num],
+  ]);
+}
+
+function julgadoPorHash(h) { return todosJulgados.find((j) => j.dedupe_hash === h); }
+
+function montarCartao(j) {
+  const est = aberto && aberto.hash === j.dedupe_hash ? aberto : null;
+  const card = document.createElement("article");
+  card.className = "rot-cartao julgado-card" + (est ? " aberto" : "");
+  card.dataset.hash = j.dedupe_hash;
+
+  if (est && est.resultado) { montarResultado(card, j, est); return card; }
+
+  card.appendChild(fichaJulgado(j));
+  if (j.resumo) {
+    const det = document.createElement("details");
+    det.className = "explicacao";
+    det.appendChild(criarEl("summary", "", "Ver explicação"));
+    det.appendChild(criarEl("p", "", j.resumo));
+    card.appendChild(det);
+  }
+  if (est) {
+    card.appendChild(painelFormatos(j, est));
+  } else {
+    const acoes = criarEl("div", "roteiro-acoes", "");
+    const b = criarEl("button", "botao-primario", "Gerar roteiro");
+    b.type = "button";
+    b.setAttribute("aria-label", "Gerar roteiro: " + (j.assunto || "julgado sem assunto informado"));
+    b.addEventListener("click", () => abrirCartao(j));
+    acoes.appendChild(b);
+    card.appendChild(acoes);
+  }
+  return card;
+}
+
+// Troca o cartão no lugar; `foco` = "painel" | "resultado" | "botao" (só quando a ação veio do usuário).
+function substituirCartao(hash, foco) {
+  const velho = cartoes.get(hash);
+  const j = julgadoPorHash(hash);
+  if (!velho || !j) return;
+  const novo = montarCartao(j);
+  velho.replaceWith(novo);
+  cartoes.set(hash, novo);
+  if (!foco) return;
+  const alvo = foco === "painel" ? novo.querySelector(".gerador")
+    : foco === "resultado" ? novo.querySelector(".resultado-titulo")
+    : novo.querySelector(".botao-primario");
+  if (alvo) {
+    alvo.focus({ preventScroll: true });
+    novo.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+}
+
+function abrirCartao(j) {
+  if (aberto && aberto.gerando) return;
+  const anterior = aberto && aberto.hash;
+  aberto = { hash: j.dedupe_hash, formato: null, erro: "", gerando: false, resultado: null, atualizarUI: null };
+  if (anterior) substituirCartao(anterior);
+  substituirCartao(j.dedupe_hash, "painel");
+}
+
+function fecharCartao() {
+  if (!aberto || aberto.gerando) return;
+  const h = aberto.hash;
+  aberto = null;
+  substituirCartao(h, "botao");
+}
+
+function painelFormatos(j, est) {
+  const painel = criarEl("div", "gerador", "");
+  painel.tabIndex = -1;
+  painel.setAttribute("role", "group");
+  const titulo = criarEl("h4", "", "Escolha o formato");
+  titulo.id = "gerador-titulo-" + j._i;
+  painel.setAttribute("aria-labelledby", titulo.id);
+  painel.appendChild(titulo);
+
+  const nivel = nivelUsuario();
+  const lista = criarEl("div", "grade-formatos", "");
+  lista.setAttribute("role", "radiogroup");
+  lista.setAttribute("aria-labelledby", titulo.id);
+  if (tiposRoteiro.length === 0) lista.textContent = "Nenhum formato disponível no momento.";
+  for (const t of tiposRoteiro) {
+    const minimo = t.nivel_minimo || 1;
+    const bloqueado = minimo > nivel;
+    const conteudo = criarEl("span", "cartao-conteudo", "");
+    conteudo.appendChild(criarEl("span", "cartao-titulo", t.nome));
+    if (t.descricao) conteudo.appendChild(criarEl("span", "cartao-meta", t.descricao));
+    let dica = null;
+    if (bloqueado) {
+      dica = criarEl("span", "cartao-bloqueio", dicaPlano(minimo));
+      dica.id = `bloq-${j._i}-${t.slug}`;
+      conteudo.appendChild(dica);
+    }
+    const cartao = cartaoRadio("formato-" + j._i, t.slug, est.formato === t.slug, conteudo, (v) => {
+      est.formato = v;
+      est.erro = "";
+      est.atualizarUI();
+    }, bloqueado);
+    if (dica) cartao.querySelector("input").setAttribute("aria-describedby", dica.id);
+    lista.appendChild(cartao);
+  }
+  painel.appendChild(lista);
+
+  const aviso = criarEl("p", "mensagem erro", "");
+  aviso.setAttribute("role", "alert");
+  painel.appendChild(aviso);
+
+  const barra = criarEl("div", "gerador-acoes", "");
+  const botao = criarEl("button", "botao-primario", "Gerar");
+  botao.type = "button";
+  const cancelar = criarEl("button", "botao-secundario", "Cancelar");
+  cancelar.type = "button";
+  const dicaBarra = criarEl("p", "dica-gerar", "");
+  botao.setAttribute("aria-describedby", "dica-" + j._i);
+  dicaBarra.id = "dica-" + j._i;
+  barra.append(botao, cancelar, dicaBarra);
+  painel.appendChild(barra);
+
+  est.atualizarUI = () => {
+    aviso.textContent = est.erro || "";
+    let msg = "";
+    if (est.gerando) msg = "Gerando… leva alguns segundos.";
+    else if (esgotada()) msg = "Você usou todos os roteiros deste mês. O contador zera no dia 1º.";
+    else if (!est.formato) msg = "Escolha um formato para continuar.";
+    dicaBarra.textContent = msg;
+    botao.disabled = est.gerando || esgotada() || !est.formato;
+    cancelar.disabled = est.gerando;
+    botao.textContent = est.gerando ? "Gerando…" : "Gerar";
+    botao.setAttribute("aria-busy", est.gerando ? "true" : "false");
+  };
+  botao.addEventListener("click", () => gerarRoteiro(j, est));
+  cancelar.addEventListener("click", fecharCartao);
+  est.atualizarUI();
+  return painel;
+}
+
+// Desenha filtradosJulgados até limiteJulgados. `reiniciar` refaz a lista; senão só acrescenta o que falta.
+function desenharJulgados(reiniciar) {
+  const lista = document.getElementById("lista-julgados");
+  if (reiniciar) { lista.replaceChildren(); cartoes.clear(); exibidosJulgados = 0; }
+  if (filtradosJulgados.length === 0) {
+    lista.textContent = MSG_SEM_JULGADOS_COMPLETOS;
+  } else {
+    const primeiroNovo = exibidosJulgados;
+    for (const j of filtradosJulgados.slice(exibidosJulgados, limiteJulgados)) {
+      const c = montarCartao(j);
+      cartoes.set(j.dedupe_hash, c);
+      lista.appendChild(c);
+    }
+    exibidosJulgados = Math.min(limiteJulgados, filtradosJulgados.length);
+    if (!reiniciar) {
+      const novo = lista.querySelectorAll(".julgado-card")[primeiroNovo];
+      const b = novo && novo.querySelector("button, summary");
+      if (b) b.focus();
+    }
+  }
+  const n = filtradosJulgados.length;
+  document.getElementById("contador-julgados").textContent = n === 0 ? "" :
+    `${n} julgado${n === 1 ? "" : "s"}` + (exibidosJulgados < n ? ` · mostrando ${exibidosJulgados}` : "");
+  document.getElementById("mais-julgados").hidden = exibidosJulgados >= n;
+}
+
+function atualizarJulgados() {
+  const base = todosJulgados.filter((j) => !areaFiltro || j.area === areaFiltro);
+  const incompletos = base.filter((j) => !julgadoCompleto(j)).length;
+  filtradosJulgados = (incluirIncompletos ? base : base.filter(julgadoCompleto)).sort(compararJulgados);
+  limiteJulgados = JULGADOS_POR_PAGINA;
+  if (aberto && !aberto.gerando && !filtradosJulgados.some((j) => j.dedupe_hash === aberto.hash)) aberto = null;
+
+  const link = document.getElementById("mostrar-incompletos");
+  link.hidden = incompletos === 0;
+  link.textContent = incluirIncompletos
+    ? "Ocultar julgados sem número ou data"
+    : `Ver também julgados sem número ou data (${incompletos})`;
+  desenharJulgados(true);
+}
+
+function montarFiltroArea() {
+  const barra = document.getElementById("filtro-julgados-area");
+  const areas = areasAssinadasAtual || [];
+  barra.hidden = areas.length < 2;
+  if (areas.length < 2) return;
+  for (const [valor, rotulo] of [["", "Todas"], ...areas.map((a) => [a, rotuloArea(a)])]) {
+    const b = criarEl("button", "chip-filtro", rotulo);
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(valor === areaFiltro));
+    b.addEventListener("click", () => {
+      areaFiltro = valor;
+      for (const x of barra.children) x.setAttribute("aria-pressed", String(x === b));
+      atualizarJulgados();
+    });
+    barra.appendChild(b);
+  }
+}
+
+async function carregarJulgados() {
+  const lista = document.getElementById("lista-julgados");
+  const { data, error } = await supabaseClient
+    .from("julgados_disponiveis")
+    .select("dedupe_hash, area, assunto, resumo, orgao_julgador, data_julgamento, numero_julgado, data_captura")
+    .order("data_julgamento", { ascending: false, nullsFirst: false })
+    .order("data_captura", { ascending: false })
+    .limit(200);
+  if (error || !data) {
+    lista.textContent = "Não foi possível carregar os julgados.";
+    return;
+  }
+  if (data.length === 0) {
+    lista.textContent = (areasAssinadasAtual || []).length === 0
+      ? "Você precisa de uma assinatura ativa para ver os julgados."
+      : MSG_SEM_JULGADOS_COMPLETOS;
+    return;
+  }
+  todosJulgados = data.map((j, i) => ({ ...j, _i: i }));
+  atualizarJulgados();
+}
+
 function corpoRoteiro(r) {
   const corpo = criarEl("div", "rot-texto", "");
   const secoes = parsearRoteiro(r.texto);
@@ -716,57 +794,44 @@ function textoBruto(r) {
   return r.cta && !String(r.texto).includes(r.cta) ? `${r.texto}\n\n${r.cta}` : r.texto;
 }
 
-function botaoCopiar(rotulo, getTexto) {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "botao-secundario";
-  b.textContent = rotulo;
-  let timer;
-  b.addEventListener("click", async () => {
-    let ok = true;
-    try { await navigator.clipboard.writeText(getTexto()); } catch { ok = false; }
-    b.textContent = ok ? "Copiado" : "Não foi possível copiar";
-    clearTimeout(timer);
-    timer = setTimeout(() => { b.textContent = rotulo; }, 2000);
-  });
-  return b;
-}
-
-// Resultado recém-gerado: anatomia do `.exemplo` da landing (cabeçalho + ficha + seções + referência).
-function criarCartaoResultado(r) {
-  const item = document.createElement("article");
-  item.className = "rot-cartao";
+// Resultado dentro do próprio cartão: anatomia do `.exemplo` da landing (cabeçalho + ficha + seções + referência).
+function montarResultado(card, j, est) {
+  const r = est.resultado;
   const cab = document.createElement("header");
-  cab.appendChild(criarEl("h3", "", "Seu roteiro"));
+  const titulo = criarEl("h3", "resultado-titulo", "Seu roteiro");
+  titulo.tabIndex = -1;
+  cab.appendChild(titulo);
   cab.appendChild(criarEl("span", "selo-formato", nomeFormato(r.tipo_slug)));
-  item.appendChild(cab);
+  card.appendChild(cab);
 
-  const meta = document.createElement("dl");
-  meta.className = "rot-meta";
   const num = r.numero_julgado && String(r.numero_julgado).trim();
-  for (const [rotulo, valor] of [
+  card.appendChild(fichaRoteiro([
     ["Área", r.area ? rotuloArea(r.area) : ""],
     ["Formato", nomeFormato(r.tipo_slug)],
     ["Assunto", r.assunto],
     ["Órgão julgador", r.orgao_julgador],
     ["Data do julgamento", formatarDataBR(r.data_julgamento)],
     ["Processo/recurso nº", num],
-  ]) {
-    const par = document.createElement("div");
-    par.appendChild(criarEl("dt", "", rotulo));
-    par.appendChild(criarEl("dd", "", valor || NAO_INFORMADO));
-    meta.appendChild(par);
-  }
-  item.appendChild(meta);
-  item.appendChild(corpoRoteiro(r));
-  item.appendChild(criarEl("p", "roteiro-aviso-fidelidade", AVISO_FIDELIDADE));
+  ]));
+  card.appendChild(corpoRoteiro(r));
+  card.appendChild(criarEl("p", "roteiro-aviso-fidelidade", AVISO_FIDELIDADE));
+
   const acoes = criarEl("div", "roteiro-acoes", "");
-  acoes.appendChild(botaoCopiar("Copiar roteiro", () => textoBruto(r)));
-  item.appendChild(acoes);
-  return item;
+  acoes.appendChild(botaoCopiar("Copiar roteiro", () => textoBruto(r), "botao-primario"));
+  const outro = criarEl("button", "botao-secundario", "Gerar em outro formato");
+  outro.type = "button";
+  outro.addEventListener("click", () => {
+    est.resultado = null; est.formato = null; est.erro = "";
+    substituirCartao(j.dedupe_hash, "painel");
+  });
+  const fechar = criarEl("button", "botao-secundario", "Fechar");
+  fechar.type = "button";
+  fechar.addEventListener("click", fecharCartao);
+  acoes.append(outro, fechar);
+  card.appendChild(acoes);
 }
 
-// ---- Meus roteiros gerados: cartão compacto, agrupado por período ----
+// ---- Meus roteiros › Gerados por mim: cartão compacto, agrupado por período ----
 let idCartaoGerado = 0;
 function criarCartaoGerado(r) {
   const id = "gerado-corpo-" + (++idCartaoGerado);
@@ -807,32 +872,6 @@ function criarCartaoGerado(r) {
   return item;
 }
 
-function diaSaoPaulo(iso) {
-  const d = new Date(iso);
-  return isNaN(d) ? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d); // yyyy-mm-dd
-}
-
-// Segunda-feira da semana de `hoje` (yyyy-mm-dd), sem fuso: só aritmética de calendário.
-function inicioSemanaChave(hoje) {
-  const [a, m, d] = hoje.split("-").map(Number);
-  const t = new Date(Date.UTC(a, m - 1, d));
-  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7));
-  return t.toISOString().slice(0, 10);
-}
-
-function periodoDoRoteiro(r, hoje, semana) {
-  const dia = diaSaoPaulo(r.criado_em);
-  if (dia === hoje) return "Hoje";
-  return dia && dia >= semana ? "Esta semana" : "Anteriores";
-}
-
-function preencherFiltroGerados(select, todos, valores, rotular) {
-  const atual = select.value;
-  select.replaceChildren(new Option(todos, ""));
-  for (const v of valores) select.appendChild(new Option(rotular(v), v));
-  select.value = [...select.options].some((o) => o.value === atual) ? atual : "";
-}
-
 function renderizarHistoricoGerados() {
   const lista = document.getElementById("lista-gerados");
   const barra = document.getElementById("filtros-gerados");
@@ -841,7 +880,7 @@ function renderizarHistoricoGerados() {
   lista.replaceChildren();
   barra.hidden = historicoGerados.length === 0;
   if (historicoGerados.length === 0) {
-    lista.textContent = "Você ainda não gerou nenhum roteiro. Escolha um julgado e um formato em “Gerar roteiro” para começar; eles ficam guardados aqui.";
+    lista.textContent = "Você ainda não gerou nenhum roteiro. Use “Gerar roteiro” em um dos julgados sugeridos; eles ficam guardados aqui.";
     return;
   }
   preencherFiltroGerados(selFormato, "Todos os formatos",
@@ -885,13 +924,22 @@ async function carregarHistoricoGerados() {
   renderizarHistoricoGerados();
 }
 
-async function gerarRoteiro() {
-  if (gerando || !julgadoSelecionado || !formatoSelecionado) return;
-  gerando = true;
-  mostrarAvisoGerar("");
-  atualizarBotaoGerar();
-  const julgado = julgadoEscolhido();
+function mensagemErroGerar(status, dados) {
+  if (typeof dados.erro === "string" && dados.erro) return dados.erro;
+  return {
+    403: "Este formato não está disponível no seu plano.",
+    422: "Não foi possível gerar o roteiro para este julgado. Tente outro formato ou outro julgado.",
+    429: "Você atingiu o limite de roteiros deste mês.",
+    502: "O serviço de geração está indisponível agora. Tente de novo em instantes.",
+  }[status] || "Não foi possível gerar o roteiro agora. Tente de novo em instantes; se persistir, recarregue a página.";
+}
 
+async function gerarRoteiro(j, est) {
+  if (est.gerando || !est.formato || esgotada()) return;
+  est.gerando = true;
+  est.erro = "";
+  est.atualizarUI();
+  const formato = est.formato;
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) { window.location.href = "login.html"; return; }
@@ -905,10 +953,10 @@ async function gerarRoteiro() {
           apikey: SUPABASE_ANON_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dedupe_hash: julgadoSelecionado, tipo_slug: formatoSelecionado }),
+        body: JSON.stringify({ dedupe_hash: j.dedupe_hash, tipo_slug: formato }),
       });
     } catch {
-      mostrarAvisoGerar("Não foi possível concluir o pedido. Recarregue a página e tente de novo.");
+      est.erro = "Não foi possível concluir o pedido. Verifique sua conexão e tente de novo.";
       return;
     }
     const dados = await resposta.json().catch(() => ({}));
@@ -919,34 +967,21 @@ async function gerarRoteiro() {
       return;
     }
     if (!resposta.ok || !dados.roteiro) {
-      mostrarAvisoGerar(typeof dados.erro === "string" && dados.erro
-        ? dados.erro : (resposta.status === 403
-          ? "Acesso não autorizado a esta função. Recarregue a página e tente de novo."
-          : "Não foi possível gerar o roteiro agora. Tente de novo em instantes; se persistir, recarregue a página."));
+      est.erro = mensagemErroGerar(resposta.status, dados);
       if (dados.uso && Number.isFinite(dados.uso.usados)) {
         usoMes = { usados: dados.uso.usados, limite: dados.uso.limite || usoMes.limite };
-        atualizarContador();
       }
       return;
     }
 
     // Campos do julgado que a resposta não trouxer vêm do julgado escolhido.
     const roteiro = { ...dados.roteiro };
-    if (julgado) {
-      for (const k of ["area", "assunto", "orgao_julgador", "data_julgamento", "numero_julgado"]) {
-        if (roteiro[k] == null) roteiro[k] = julgado[k];
-      }
+    for (const k of ["area", "assunto", "orgao_julgador", "data_julgamento", "numero_julgado"]) {
+      if (roteiro[k] == null) roteiro[k] = j[k];
     }
-    if (!roteiro.tipo_slug) roteiro.tipo_slug = formatoSelecionado;
+    if (!roteiro.tipo_slug) roteiro.tipo_slug = formato;
     if (!roteiro.criado_em) roteiro.criado_em = new Date().toISOString();
-
-    const resultado = document.getElementById("resultado-gerar");
-    resultado.replaceChildren(criarCartaoResultado(roteiro));
-    resultado.hidden = false;
-    resultado.focus({ preventScroll: true });
-    resultado.scrollIntoView({
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start",
-    });
+    est.resultado = roteiro;
 
     historicoGerados = [roteiro, ...historicoGerados.filter((x) => x.id !== roteiro.id)].slice(0, LIMITE_HISTORICO);
     renderizarHistoricoGerados();
@@ -955,19 +990,18 @@ async function gerarRoteiro() {
     } else if (usoMes.usados !== null) {
       usoMes.usados += 1;
     }
-    atualizarContador();
   } finally {
-    gerando = false;
-    atualizarBotaoGerar();
+    est.gerando = false;
+    if (aberto === est) {
+      if (est.resultado) substituirCartao(j.dedupe_hash, "resultado");
+      else est.atualizarUI();
+    }
+    atualizarContador();
   }
 }
 
-function carregarGerador() {
-  const select = document.getElementById("filtro-julgados-area");
-  select.appendChild(new Option("Todas as áreas", ""));
-  for (const area of areasAssinadasAtual || []) select.appendChild(new Option(rotuloArea(area), area));
-  select.hidden = (areasAssinadasAtual || []).length < 2;
-  select.addEventListener("change", atualizarJulgados);
+function iniciarPainel() {
+  montarFiltroArea();
   document.getElementById("mostrar-incompletos").addEventListener("click", () => {
     incluirIncompletos = !incluirIncompletos;
     atualizarJulgados();
@@ -976,21 +1010,22 @@ function carregarGerador() {
     limiteJulgados += JULGADOS_POR_PAGINA;
     desenharJulgados(false);
   });
-  document.getElementById("botao-gerar").addEventListener("click", gerarRoteiro);
   document.getElementById("filtro-gerados-formato").addEventListener("change", renderizarHistoricoGerados);
   document.getElementById("filtro-gerados-area").addEventListener("change", renderizarHistoricoGerados);
+  configurarAbas();
   usoMes.limite = limiteMensal();
   atualizarContador();
-  carregarJulgados();
-  carregarFormatos().then(carregarHistoricoGerados); // formatos primeiro: o histórico mostra o nome deles
+  // Formatos primeiro: cartões abertos e histórico mostram o nome deles.
+  carregarFormatos().then(() => { carregarJulgados(); carregarHistoricoGerados(); });
   carregarUsoMes();
+  carregarSemana();
+  carregarTendencias().then(carregarProntos); // "em alta" nos prontos depende das tendências
 }
 
 iniciar().then(() => {
   if (advogadoAtual) {
-    carregarRoteiros();
     carregarDetalhesAssinatura();
-    carregarGerador();
+    iniciarPainel();
   }
 });
 

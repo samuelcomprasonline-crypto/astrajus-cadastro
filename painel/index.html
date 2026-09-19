@@ -63,7 +63,14 @@
           <h3>1. Escolha o julgado</h3>
           <select id="filtro-julgados-area" class="filtro-select" aria-label="Filtrar julgados por área"></select>
         </div>
+        <div class="julgados-ferramentas">
+          <input type="search" id="busca-julgados" class="busca-julgados" placeholder="Buscar por assunto, órgão ou número" aria-label="Buscar julgados por assunto, resumo, órgão julgador ou número" autocomplete="off">
+          <label class="opcao-incompletos"><input type="checkbox" id="mostrar-incompletos"> Mostrar também julgados sem número/data</label>
+        </div>
+        <p id="contador-julgados" class="julgados-contador" aria-live="polite"></p>
+        <p id="aviso-ocultos" class="julgados-aviso" role="status" hidden></p>
         <div id="lista-julgados" class="grade-cartoes grade-julgados" role="radiogroup" aria-label="Julgados da semana">Carregando...</div>
+        <div class="julgados-mais"><button type="button" id="mais-julgados" class="botao-secundario" hidden>Mostrar mais</button></div>
       </div>
 
       <div class="gerar-passo">

@@ -342,7 +342,6 @@ body.auth {
 .gerar-passo-topo { margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 .gerar-passo h3 { font-family: var(--fonte-display); font-weight: 400; font-size: 1.15rem; letter-spacing: 0.04em; }
 .grade-cartoes { display: grid; gap: 14px; }
-.grade-julgados { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
 .grade-formatos { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
 .grade-cartoes:not(:has(.cartao-selecao)) { display: block; color: var(--texto-suave); }
 .cartao-selecao {
@@ -386,6 +385,40 @@ body.auth {
   cursor: pointer;
 }
 .botao-texto:hover { color: var(--marinho); }
+
+/* Lista de julgados */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.julgados-ferramentas { margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.busca-julgados {
+  flex: 1 1 280px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid rgba(91, 91, 240, 0.4);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--grafite);
+  font: inherit;
+  font-size: 0.95rem;
+}
+.busca-julgados:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-color: var(--indigo); }
+.opcao-incompletos { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 0.9rem; color: var(--texto-suave); cursor: pointer; }
+.opcao-incompletos input { width: 18px; height: 18px; accent-color: var(--indigo); cursor: pointer; }
+.julgados-contador { margin-bottom: 12px; font-size: 0.92rem; font-weight: 500; }
+.julgados-aviso { margin: -4px 0 14px; padding: 10px 16px; border-radius: 14px; background: #fff2e0; color: #6b3800; font-size: 0.9rem; }
+.julgados-mais { margin-top: 20px; text-align: center; }
+.julgados-mais .botao-secundario { min-width: 200px; }
+.grade-julgados { grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); }
+.grade-julgados .cartao-selecao { container-type: inline-size; }
+.grade-julgados .cartao-conteudo { flex: 1; gap: 10px; }
+.julgado-meta { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 16px; padding: 12px 14px; border: 1px solid var(--borda); border-radius: 14px; background: var(--lavanda); }
+.cartao-selecao:has(input:checked) .julgado-meta { background: #fff; }
+.julgado-campo { display: grid; gap: 1px; min-width: 0; }
+.julgado-rotulo { font-size: 0.78rem; color: var(--texto-suave); }
+.julgado-valor { font-size: 0.9rem; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.julgado-valor.vazio { font-weight: 400; color: var(--texto-suave); }
+.julgado-incompleto { justify-self: start; padding: 2px 10px; border-radius: 999px; background: #fff2e0; color: #6b3800; font-size: 0.78rem; font-weight: 600; }
+@container (min-width: 540px) { .julgado-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .gerar-acao { margin-top: 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; }
 .contador-uso { min-width: 180px; }
@@ -465,3 +498,5 @@ body.auth {
   * { transition: none !important; }
   .botao-primario:hover, .botao-secundario:hover, #botao-sair:hover { transform: none !important; }
 }
+
+.grade-julgados .botao-texto { align-self: flex-start; }

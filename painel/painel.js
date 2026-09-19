@@ -508,54 +508,136 @@ function cartaoRadio(nome, valor, marcado, conteudo, aoMarcar, extra) {
   return cartao;
 }
 
-function renderizarJulgados(julgados) {
-  const lista = document.getElementById("lista-julgados");
-  lista.replaceChildren();
-  if (!julgados.some((j) => j.dedupe_hash === julgadoSelecionado)) julgadoSelecionado = null;
+// ---- Lista de julgados: busca, filtro de área, ocultação de incompletos e paginação (tudo no cliente) ----
+const JULGADOS_POR_PAGINA = 9;
+const MSG_SEM_JULGADOS_COMPLETOS =
+  "Ainda não há julgados com número e data nas suas áreas. Novos julgados chegam a cada semana.";
+let todosJulgados = [];
+let filtradosJulgados = [];
+let exibidosJulgados = 0;
+let limiteJulgados = JULGADOS_POR_PAGINA;
 
-  for (const j of julgados) {
-    const conteudo = criarEl("span", "cartao-conteudo", "");
-    const chips = criarEl("span", "roteiro-chips", "");
-    chips.appendChild(criarEl("span", "chip-area", rotuloArea(j.area)));
-    conteudo.appendChild(chips);
-    conteudo.appendChild(criarEl("span", "cartao-titulo", j.assunto || "Assunto não informado"));
-    const data = formatarDataBR(j.data_julgamento);
-    conteudo.appendChild(criarEl("span", "cartao-meta",
-      `${j.orgao_julgador || "Órgão não informado"} · ${data ? "julgado em " + data : "data não informada"}`));
+function normalizarBusca(s) {
+  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
 
-    let extra = null;
-    let resumoEl = null;
-    if (j.resumo) {
-      const resumo = resumoEl = criarEl("span", "julgado-resumo", j.resumo);
-      if (j.resumo.length > 170) {
-        extra = criarEl("button", "botao-texto", "Ver mais");
-        extra.type = "button";
-        extra.setAttribute("aria-expanded", "false");
-        extra.addEventListener("click", () => {
-          const aberto = resumo.classList.toggle("expandido");
-          extra.setAttribute("aria-expanded", String(aberto));
-          extra.textContent = aberto ? "Ver menos" : "Ver mais";
-        });
-      }
-    }
-    conteudo.appendChild(criarEl("span", "cartao-meta", textoNumeroJulgado(j.numero_julgado)));
-    if (j.resumo) conteudo.appendChild(resumoEl);
-    lista.appendChild(cartaoRadio("julgado", j.dedupe_hash, j.dedupe_hash === julgadoSelecionado, conteudo,
-      (v) => { julgadoSelecionado = v; atualizarBotaoGerar(); }, extra));
+function julgadoCompleto(j) {
+  return !!(j.numero_julgado && String(j.numero_julgado).trim()) && !!formatarDataBR(j.data_julgamento);
+}
+
+// Data de julgamento desc (nulos por último), depois data_captura desc.
+function compararJulgados(a, b) {
+  const da = formatarDataBR(a.data_julgamento) ? a.data_julgamento : "";
+  const db = formatarDataBR(b.data_julgamento) ? b.data_julgamento : "";
+  if (da !== db) return !da ? 1 : !db ? -1 : (da < db ? 1 : -1);
+  const ca = a.data_captura || "", cb = b.data_captura || "";
+  return ca === cb ? 0 : (ca < cb ? 1 : -1);
+}
+
+function campoJulgado(rotulo, valor) {
+  const campo = criarEl("span", "julgado-campo", "");
+  campo.appendChild(criarEl("span", "julgado-rotulo", rotulo));
+  const v = criarEl("span", "julgado-valor", valor || "");
+  if (!valor) { // "—" discreto; leitor de tela ouve "não informado"
+    v.classList.add("vazio");
+    const traco = criarEl("span", "", "—");
+    traco.setAttribute("aria-hidden", "true");
+    v.append(traco, criarEl("span", "sr-only", "não informado"));
   }
+  campo.appendChild(v);
+  return campo;
+}
+
+function criarCartaoJulgado(j) {
+  const conteudo = criarEl("span", "cartao-conteudo", "");
+  const meta = criarEl("span", "julgado-meta", "");
+  meta.id = `julgado-meta-${j._i}`;
+  meta.append(
+    campoJulgado("Área", rotuloArea(j.area)),
+    campoJulgado("Órgão julgador", j.orgao_julgador),
+    campoJulgado("Processo/recurso nº", j.numero_julgado && String(j.numero_julgado).trim()),
+    campoJulgado("Julgado em", formatarDataBR(j.data_julgamento)),
+  );
+  conteudo.appendChild(meta);
+  if (!julgadoCompleto(j)) conteudo.appendChild(criarEl("span", "julgado-incompleto", "Dados incompletos"));
+  const titulo = criarEl("span", "cartao-titulo", j.assunto || "Assunto não informado");
+  titulo.id = `julgado-titulo-${j._i}`;
+  conteudo.appendChild(titulo);
+
+  let extra = null;
+  if (j.resumo) {
+    const resumo = criarEl("span", "julgado-resumo", j.resumo);
+    conteudo.appendChild(resumo);
+    if (j.resumo.length > 170) {
+      extra = criarEl("button", "botao-texto", "Ver mais");
+      extra.type = "button";
+      extra.setAttribute("aria-expanded", "false");
+      extra.addEventListener("click", () => {
+        const aberto = resumo.classList.toggle("expandido");
+        extra.setAttribute("aria-expanded", String(aberto));
+        extra.textContent = aberto ? "Ver menos" : "Ver mais";
+      });
+    }
+  }
+  const cartao = cartaoRadio("julgado", j.dedupe_hash, j.dedupe_hash === julgadoSelecionado, conteudo,
+    (v) => { julgadoSelecionado = v; atualizarBotaoGerar(); }, extra);
+  const radio = cartao.querySelector("input");
+  radio.setAttribute("aria-labelledby", titulo.id); // nome curto; os dados vão como descrição
+  radio.setAttribute("aria-describedby", meta.id);
+  return cartao;
+}
+
+// Desenha filtradosJulgados até limiteJulgados. `reiniciar` refaz a lista; senão só acrescenta o que falta.
+function desenharJulgados(reiniciar, mensagemVazia) {
+  const lista = document.getElementById("lista-julgados");
+  if (reiniciar) { lista.replaceChildren(); exibidosJulgados = 0; }
+  if (filtradosJulgados.length === 0) {
+    lista.textContent = mensagemVazia || "";
+  } else {
+    const primeiroNovo = exibidosJulgados;
+    for (const j of filtradosJulgados.slice(exibidosJulgados, limiteJulgados)) lista.appendChild(criarCartaoJulgado(j));
+    exibidosJulgados = Math.min(limiteJulgados, filtradosJulgados.length);
+    if (!reiniciar) {
+      const novo = lista.querySelectorAll(".cartao-selecao")[primeiroNovo];
+      if (novo) novo.querySelector("input").focus();
+    }
+  }
+  const n = filtradosJulgados.length;
+  document.getElementById("contador-julgados").textContent =
+    `${n} julgado${n === 1 ? "" : "s"}` + (exibidosJulgados < n ? ` · mostrando ${exibidosJulgados}` : "");
+  document.getElementById("mais-julgados").hidden = exibidosJulgados >= n;
   atualizarBotaoGerar();
+}
+
+function atualizarJulgados() {
+  if (todosJulgados.length === 0) return;
+  const area = document.getElementById("filtro-julgados-area").value;
+  const termo = normalizarBusca(document.getElementById("busca-julgados").value).trim();
+  const incluirIncompletos = document.getElementById("mostrar-incompletos").checked;
+
+  const base = todosJulgados.filter((j) => (!area || j.area === area) && (!termo || j._busca.includes(termo)));
+  const ocultos = incluirIncompletos ? 0 : base.filter((j) => !julgadoCompleto(j)).length;
+  filtradosJulgados = (incluirIncompletos ? base : base.filter(julgadoCompleto)).sort(compararJulgados);
+  limiteJulgados = JULGADOS_POR_PAGINA;
+  if (!filtradosJulgados.some((j) => j.dedupe_hash === julgadoSelecionado)) julgadoSelecionado = null;
+
+  const aviso = document.getElementById("aviso-ocultos");
+  aviso.hidden = ocultos === 0;
+  aviso.textContent = ocultos === 1
+    ? "1 julgado oculto por não trazer número ou data."
+    : `${ocultos} julgados ocultos por não trazerem número ou data.`;
+
+  desenharJulgados(true, termo ? "Nenhum julgado corresponde à busca." : MSG_SEM_JULGADOS_COMPLETOS);
 }
 
 async function carregarJulgados() {
   const lista = document.getElementById("lista-julgados");
-  const area = document.getElementById("filtro-julgados-area").value;
-  let q = supabaseClient
+  const { data, error } = await supabaseClient
     .from("julgados_disponiveis")
     .select("dedupe_hash, area, assunto, resumo, orgao_julgador, data_julgamento, numero_julgado, data_captura")
+    .order("data_julgamento", { ascending: false, nullsFirst: false })
     .order("data_captura", { ascending: false })
-    .limit(30);
-  if (area) q = q.eq("area", area);
-  const { data, error } = await q;
+    .limit(200);
   if (error || !data) {
     lista.textContent = "Não foi possível carregar os julgados.";
     return;
@@ -564,9 +646,16 @@ async function carregarJulgados() {
     lista.textContent = (areasAssinadasAtual || []).length === 0
       ? "Você precisa de uma assinatura ativa para ver os julgados."
       : "Nenhum julgado disponível para esta seleção nos últimos dias.";
+    document.getElementById("contador-julgados").textContent = "0 julgados";
     return;
   }
-  renderizarJulgados(data);
+  todosJulgados = data.map((j, i) => ({
+    ...j,
+    _i: i,
+    _busca: normalizarBusca([j.assunto, j.resumo, j.orgao_julgador, j.numero_julgado,
+      String(j.numero_julgado || "").replace(/\D/g, "")].join(" ")),
+  }));
+  atualizarJulgados();
 }
 
 async function carregarFormatos() {
@@ -772,7 +861,13 @@ function carregarGerador() {
   const select = document.getElementById("filtro-julgados-area");
   select.appendChild(new Option("Todas as áreas", ""));
   for (const area of areasAssinadasAtual || []) select.appendChild(new Option(rotuloArea(area), area));
-  select.addEventListener("change", carregarJulgados);
+  select.addEventListener("change", atualizarJulgados);
+  document.getElementById("busca-julgados").addEventListener("input", atualizarJulgados);
+  document.getElementById("mostrar-incompletos").addEventListener("change", atualizarJulgados);
+  document.getElementById("mais-julgados").addEventListener("click", () => {
+    limiteJulgados += JULGADOS_POR_PAGINA;
+    desenharJulgados(false);
+  });
   document.getElementById("botao-gerar").addEventListener("click", gerarRoteiro);
   usoMes.limite = limiteMensal();
   atualizarContador();

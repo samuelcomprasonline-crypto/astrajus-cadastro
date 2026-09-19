@@ -403,6 +403,9 @@ document.getElementById("botao-cancelar").addEventListener("click", async () => 
 const GERAR_ROTEIRO_URL = SUPABASE_URL + "/functions/v1/gerar-roteiro";
 const LIMITE_PADRAO = 30;
 const LIMITE_MUITAS_AREAS = 100;
+const LIMITE_HISTORICO = 100;
+const AVISO_FIDELIDADE = "Roteiro baseado apenas no resumo do julgado. Confira o julgado original antes de publicar.";
+const NAO_INFORMADO = "não informado pela fonte";
 
 let julgadoSelecionado = null; // dedupe_hash
 let formatoSelecionado = null; // slug
@@ -435,28 +438,12 @@ function formatarDataHoraBR(iso) {
   });
 }
 
-function textoParaCopiar(r) {
-  return r.cta ? `${r.texto}\n\n${r.cta}` : r.texto;
-}
-
-function botaoCopiarTexto(getTexto) {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "botao-secundario";
-  b.textContent = "Copiar texto";
-  let timer;
-  b.addEventListener("click", async () => {
-    let ok = true;
-    try { await navigator.clipboard.writeText(getTexto()); } catch { ok = false; }
-    b.textContent = ok ? "Copiado" : "Não foi possível copiar";
-    clearTimeout(timer);
-    timer = setTimeout(() => { b.textContent = "Copiar texto"; }, 2000);
-  });
-  return b;
-}
-
 function mostrarAvisoGerar(texto) {
   document.getElementById("aviso-gerar").textContent = texto || "";
+}
+
+function julgadoEscolhido() {
+  return todosJulgados.find((j) => j.dedupe_hash === julgadoSelecionado) || null;
 }
 
 function atualizarContador() {
@@ -477,12 +464,16 @@ function atualizarBotaoGerar() {
   const botao = document.getElementById("botao-gerar");
   const dica = document.getElementById("dica-gerar");
   const esgotada = usoMes.usados !== null && usoMes.usados >= usoMes.limite;
+  const j = julgadoEscolhido();
+  document.getElementById("resumo-gerar").textContent =
+    `Julgado: ${j ? (j.assunto || "assunto não informado") : "nenhum escolhido"} · ` +
+    `Formato: ${formatoSelecionado ? nomeFormato(formatoSelecionado) : "nenhum escolhido"}`;
   let msg = "";
-  if (gerando) msg = "Gerando seu roteiro, isso pode levar alguns segundos.";
+  if (gerando) msg = "Gerando… leva alguns segundos.";
   else if (esgotada) msg = "Você usou todos os roteiros deste mês. O contador zera no dia 1º.";
-  else if (!julgadoSelecionado && !formatoSelecionado) msg = "Escolha um julgado e um formato para continuar.";
-  else if (!julgadoSelecionado) msg = "Escolha um julgado para continuar.";
-  else if (!formatoSelecionado) msg = "Escolha um formato para continuar.";
+  else if (!julgadoSelecionado && !formatoSelecionado) msg = "Escolha um julgado (passo 1) e um formato (passo 2) para continuar.";
+  else if (!julgadoSelecionado) msg = "Escolha um julgado (passo 1) para continuar.";
+  else if (!formatoSelecionado) msg = "Escolha um formato (passo 2) para continuar.";
   dica.textContent = msg;
   botao.disabled = gerando || esgotada || !julgadoSelecionado || !formatoSelecionado;
   botao.textContent = gerando ? "Gerando…" : "Gerar roteiro";
@@ -508,18 +499,16 @@ function cartaoRadio(nome, valor, marcado, conteudo, aoMarcar, extra) {
   return cartao;
 }
 
-// ---- Lista de julgados: busca, filtro de área, ocultação de incompletos e paginação (tudo no cliente) ----
+// ---- Passo 1: lista de julgados (filtro de área, incompletos opcionais e paginação, tudo no cliente) ----
 const JULGADOS_POR_PAGINA = 9;
+const RESUMO_CURTO = 320;
 const MSG_SEM_JULGADOS_COMPLETOS =
-  "Ainda não há julgados com número e data nas suas áreas. Novos julgados chegam a cada semana.";
+  "Ainda não há julgados confirmados (com número e data) nas suas áreas. Novos julgados chegam toda semana.";
 let todosJulgados = [];
 let filtradosJulgados = [];
 let exibidosJulgados = 0;
 let limiteJulgados = JULGADOS_POR_PAGINA;
-
-function normalizarBusca(s) {
-  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
+let incluirIncompletos = false;
 
 function julgadoCompleto(j) {
   return !!(j.numero_julgado && String(j.numero_julgado).trim()) && !!formatarDataBR(j.data_julgamento);
@@ -534,32 +523,18 @@ function compararJulgados(a, b) {
   return ca === cb ? 0 : (ca < cb ? 1 : -1);
 }
 
-function campoJulgado(rotulo, valor) {
-  const campo = criarEl("span", "julgado-campo", "");
-  campo.appendChild(criarEl("span", "julgado-rotulo", rotulo));
-  const v = criarEl("span", "julgado-valor", valor || "");
-  if (!valor) { // "—" discreto; leitor de tela ouve "não informado"
-    v.classList.add("vazio");
-    const traco = criarEl("span", "", "—");
-    traco.setAttribute("aria-hidden", "true");
-    v.append(traco, criarEl("span", "sr-only", "não informado"));
-  }
-  campo.appendChild(v);
-  return campo;
+// "Órgão · Processo/recurso nº X · Julgado em dd/mm/aaaa" (ausentes = "—")
+function linhaMeta(r) {
+  const num = r.numero_julgado && String(r.numero_julgado).trim();
+  return `${r.orgao_julgador || "—"} · Processo/recurso nº ${num || "—"} · Julgado em ${formatarDataBR(r.data_julgamento) || "—"}`;
 }
 
 function criarCartaoJulgado(j) {
   const conteudo = criarEl("span", "cartao-conteudo", "");
-  const meta = criarEl("span", "julgado-meta", "");
-  meta.id = `julgado-meta-${j._i}`;
-  meta.append(
-    campoJulgado("Área", rotuloArea(j.area)),
-    campoJulgado("Órgão julgador", j.orgao_julgador),
-    campoJulgado("Processo/recurso nº", j.numero_julgado && String(j.numero_julgado).trim()),
-    campoJulgado("Julgado em", formatarDataBR(j.data_julgamento)),
-  );
-  conteudo.appendChild(meta);
-  if (!julgadoCompleto(j)) conteudo.appendChild(criarEl("span", "julgado-incompleto", "Dados incompletos"));
+  const selos = criarEl("span", "roteiro-chips", "");
+  selos.appendChild(criarEl("span", "chip-area", rotuloArea(j.area)));
+  if (!julgadoCompleto(j)) selos.appendChild(criarEl("span", "julgado-incompleto", "Dados incompletos"));
+  conteudo.appendChild(selos);
   const titulo = criarEl("span", "cartao-titulo", j.assunto || "Assunto não informado");
   titulo.id = `julgado-titulo-${j._i}`;
   conteudo.appendChild(titulo);
@@ -568,7 +543,8 @@ function criarCartaoJulgado(j) {
   if (j.resumo) {
     const resumo = criarEl("span", "julgado-resumo", j.resumo);
     conteudo.appendChild(resumo);
-    if (j.resumo.length > 170) {
+    if (j.resumo.length > RESUMO_CURTO) {
+      resumo.classList.add("truncado");
       extra = criarEl("button", "botao-texto", "Ver mais");
       extra.type = "button";
       extra.setAttribute("aria-expanded", "false");
@@ -579,6 +555,10 @@ function criarCartaoJulgado(j) {
       });
     }
   }
+  const meta = criarEl("span", "julgado-meta", linhaMeta(j));
+  meta.id = `julgado-meta-${j._i}`;
+  conteudo.appendChild(meta);
+
   const cartao = cartaoRadio("julgado", j.dedupe_hash, j.dedupe_hash === julgadoSelecionado, conteudo,
     (v) => { julgadoSelecionado = v; atualizarBotaoGerar(); }, extra);
   const radio = cartao.querySelector("input");
@@ -588,11 +568,11 @@ function criarCartaoJulgado(j) {
 }
 
 // Desenha filtradosJulgados até limiteJulgados. `reiniciar` refaz a lista; senão só acrescenta o que falta.
-function desenharJulgados(reiniciar, mensagemVazia) {
+function desenharJulgados(reiniciar) {
   const lista = document.getElementById("lista-julgados");
   if (reiniciar) { lista.replaceChildren(); exibidosJulgados = 0; }
   if (filtradosJulgados.length === 0) {
-    lista.textContent = mensagemVazia || "";
+    lista.textContent = MSG_SEM_JULGADOS_COMPLETOS;
   } else {
     const primeiroNovo = exibidosJulgados;
     for (const j of filtradosJulgados.slice(exibidosJulgados, limiteJulgados)) lista.appendChild(criarCartaoJulgado(j));
@@ -603,31 +583,26 @@ function desenharJulgados(reiniciar, mensagemVazia) {
     }
   }
   const n = filtradosJulgados.length;
-  document.getElementById("contador-julgados").textContent =
+  document.getElementById("contador-julgados").textContent = n === 0 ? "" :
     `${n} julgado${n === 1 ? "" : "s"}` + (exibidosJulgados < n ? ` · mostrando ${exibidosJulgados}` : "");
   document.getElementById("mais-julgados").hidden = exibidosJulgados >= n;
   atualizarBotaoGerar();
 }
 
 function atualizarJulgados() {
-  if (todosJulgados.length === 0) return;
   const area = document.getElementById("filtro-julgados-area").value;
-  const termo = normalizarBusca(document.getElementById("busca-julgados").value).trim();
-  const incluirIncompletos = document.getElementById("mostrar-incompletos").checked;
-
-  const base = todosJulgados.filter((j) => (!area || j.area === area) && (!termo || j._busca.includes(termo)));
-  const ocultos = incluirIncompletos ? 0 : base.filter((j) => !julgadoCompleto(j)).length;
+  const base = todosJulgados.filter((j) => !area || j.area === area);
+  const incompletos = base.filter((j) => !julgadoCompleto(j)).length;
   filtradosJulgados = (incluirIncompletos ? base : base.filter(julgadoCompleto)).sort(compararJulgados);
   limiteJulgados = JULGADOS_POR_PAGINA;
   if (!filtradosJulgados.some((j) => j.dedupe_hash === julgadoSelecionado)) julgadoSelecionado = null;
 
-  const aviso = document.getElementById("aviso-ocultos");
-  aviso.hidden = ocultos === 0;
-  aviso.textContent = ocultos === 1
-    ? "1 julgado oculto por não trazer número ou data."
-    : `${ocultos} julgados ocultos por não trazerem número ou data.`;
-
-  desenharJulgados(true, termo ? "Nenhum julgado corresponde à busca." : MSG_SEM_JULGADOS_COMPLETOS);
+  const link = document.getElementById("mostrar-incompletos");
+  link.hidden = incompletos === 0;
+  link.textContent = incluirIncompletos
+    ? "Ocultar julgados sem número ou data"
+    : `Ver também julgados sem número ou data (${incompletos})`;
+  desenharJulgados(true);
 }
 
 async function carregarJulgados() {
@@ -645,19 +620,14 @@ async function carregarJulgados() {
   if (data.length === 0) {
     lista.textContent = (areasAssinadasAtual || []).length === 0
       ? "Você precisa de uma assinatura ativa para ver os julgados."
-      : "Nenhum julgado disponível para esta seleção nos últimos dias.";
-    document.getElementById("contador-julgados").textContent = "0 julgados";
+      : MSG_SEM_JULGADOS_COMPLETOS;
     return;
   }
-  todosJulgados = data.map((j, i) => ({
-    ...j,
-    _i: i,
-    _busca: normalizarBusca([j.assunto, j.resumo, j.orgao_julgador, j.numero_julgado,
-      String(j.numero_julgado || "").replace(/\D/g, "")].join(" ")),
-  }));
+  todosJulgados = data.map((j, i) => ({ ...j, _i: i }));
   atualizarJulgados();
 }
 
+// ---- Passo 2: formatos ----
 async function carregarFormatos() {
   const lista = document.getElementById("lista-formatos");
   const { data, error } = await supabaseClient
@@ -681,6 +651,7 @@ async function carregarFormatos() {
     lista.appendChild(cartaoRadio("formato", t.slug, t.slug === formatoSelecionado, conteudo,
       (v) => { formatoSelecionado = v; atualizarBotaoGerar(); }));
   }
+  atualizarBotaoGerar();
 }
 
 async function carregarUsoMes() {
@@ -693,88 +664,211 @@ async function carregarUsoMes() {
   atualizarContador();
 }
 
-// Cartão de roteiro gerado. `compacto`: texto recolhido com botão de expandir (histórico).
-function criarCartaoGerado(r, compacto) {
-  const item = document.createElement("article");
-  item.className = "item-roteiro item-gerado";
+// ---- Roteiro renderizado como o cartão de exemplo da página de venda ----
+// Rótulo em MAIÚSCULAS + ":" no início da linha, opcionalmente com um trecho entre parênteses
+// (ex.: "REFERÊNCIA DO JULGADO (para legenda/conferência):"). Tolera **negrito** de markdown.
+const RE_ROTULO = /^[\s*#>_-]*([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ0-9 ]{1,50}(?: \([^)\n]{1,60}\))?)\s*:\s*\**\s*(.*)$/;
 
-  const cab = document.createElement("div");
-  cab.className = "roteiro-cabecalho";
-  const chips = document.createElement("div");
-  chips.className = "roteiro-chips";
-  chips.appendChild(criarEl("span", "chip-tom", nomeFormato(r.tipo_slug)));
-  if (r.area) chips.appendChild(criarEl("span", "chip-area", rotuloArea(r.area)));
-  cab.appendChild(chips);
-  cab.appendChild(criarEl("span", "roteiro-semana", formatarDataHoraBR(r.criado_em)));
+function rotuloBonito(r) {
+  return r.length <= 4 ? r : r.charAt(0) + r.slice(1).toLowerCase();
+}
+
+function parsearRoteiro(texto) {
+  const secoes = [];
+  let atual = null;
+  let naReferencia = false; // dentro da referência nada mais é rótulo (ex.: "STJ: ...")
+  for (const linha of String(texto || "").split(/\r?\n/)) {
+    const m = naReferencia ? null : RE_ROTULO.exec(linha);
+    if (m) {
+      atual = { rotulo: m[1].trim(), corpo: m[2].trim(), referencia: /^REFER[EÊ]NCIA/.test(m[1]) };
+      naReferencia = atual.referencia;
+      secoes.push(atual);
+    } else if (atual) {
+      atual.corpo += "\n" + linha;
+    } else if (linha.trim()) {
+      atual = { rotulo: "", corpo: linha.trim(), referencia: false };
+      secoes.push(atual);
+    }
+  }
+  for (const s of secoes) s.corpo = s.corpo.trim();
+  return secoes.some((s) => s.rotulo) ? secoes : [];
+}
+
+function corpoRoteiro(r) {
+  const corpo = criarEl("div", "rot-texto", "");
+  const secoes = parsearRoteiro(r.texto);
+  if (secoes.length === 0) {
+    corpo.appendChild(criarEl("p", "rot-bruto", r.texto || ""));
+    return corpo;
+  }
+  if (r.cta && !String(r.texto).includes(r.cta)) secoes.push({ rotulo: "CTA", corpo: r.cta, referencia: false });
+  for (const s of secoes) {
+    const p = document.createElement("p");
+    p.className = "rot-secao" + (s.referencia ? " rot-referencia" : "");
+    if (s.rotulo) p.appendChild(criarEl("strong", "", rotuloBonito(s.rotulo) + "."));
+    p.appendChild(document.createTextNode((s.rotulo ? " " : "") + s.corpo));
+    corpo.appendChild(p);
+  }
+  return corpo;
+}
+
+function textoBruto(r) {
+  return r.cta && !String(r.texto).includes(r.cta) ? `${r.texto}\n\n${r.cta}` : r.texto;
+}
+
+function botaoCopiar(rotulo, getTexto) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "botao-secundario";
+  b.textContent = rotulo;
+  let timer;
+  b.addEventListener("click", async () => {
+    let ok = true;
+    try { await navigator.clipboard.writeText(getTexto()); } catch { ok = false; }
+    b.textContent = ok ? "Copiado" : "Não foi possível copiar";
+    clearTimeout(timer);
+    timer = setTimeout(() => { b.textContent = rotulo; }, 2000);
+  });
+  return b;
+}
+
+// Resultado recém-gerado: anatomia do `.exemplo` da landing (cabeçalho + ficha + seções + referência).
+function criarCartaoResultado(r) {
+  const item = document.createElement("article");
+  item.className = "rot-cartao";
+  const cab = document.createElement("header");
+  cab.appendChild(criarEl("h3", "", "Seu roteiro"));
+  cab.appendChild(criarEl("span", "selo-formato", nomeFormato(r.tipo_slug)));
   item.appendChild(cab);
 
-  item.appendChild(criarEl("h3", "roteiro-titulo", r.assunto || "Assunto não informado"));
-
-  // Só mostra a referência quando o dado veio na resposta (o roteiro recém-gerado pode não trazê-lo;
-  // o texto já leva o bloco "REFERÊNCIA DO JULGADO" anexado pelo servidor).
-  const ref = [];
-  if (r.orgao_julgador !== undefined) ref.push(["Órgão julgador", r.orgao_julgador || "não informado na fonte"]);
-  if (r.data_julgamento !== undefined) ref.push(["Data do julgamento", formatarDataBR(r.data_julgamento) || "não informada na fonte"]);
-  if (r.numero_julgado !== undefined) ref.push(["Referência", textoNumeroJulgado(r.numero_julgado)]);
-  if (ref.length) {
-    const meta = document.createElement("dl");
-    meta.className = "roteiro-meta";
-    for (const [rotulo, valor] of ref) {
-      const par = document.createElement("div");
-      par.appendChild(criarEl("dt", "", rotulo + ":"));
-      par.appendChild(criarEl("dd", "", valor));
-      meta.appendChild(par);
-    }
-    item.appendChild(meta);
+  const meta = document.createElement("dl");
+  meta.className = "rot-meta";
+  const num = r.numero_julgado && String(r.numero_julgado).trim();
+  for (const [rotulo, valor] of [
+    ["Área", r.area ? rotuloArea(r.area) : ""],
+    ["Formato", nomeFormato(r.tipo_slug)],
+    ["Assunto", r.assunto],
+    ["Órgão julgador", r.orgao_julgador],
+    ["Data do julgamento", formatarDataBR(r.data_julgamento)],
+    ["Processo/recurso nº", num],
+  ]) {
+    const par = document.createElement("div");
+    par.appendChild(criarEl("dt", "", rotulo));
+    par.appendChild(criarEl("dd", "", valor || NAO_INFORMADO));
+    meta.appendChild(par);
   }
-
-  const bloco = document.createElement("section");
-  bloco.className = "roteiro-bloco";
-  const texto = criarEl("p", "texto-gerado" + (compacto ? " recolhido" : ""), r.texto);
-  bloco.appendChild(texto);
-  if (r.cta) {
-    const cta = document.createElement("div");
-    cta.className = "roteiro-cta";
-    cta.appendChild(criarEl("span", "roteiro-cta-rotulo", "Chamada para ação"));
-    cta.appendChild(criarEl("p", "texto-gerado", r.cta));
-    if (compacto) cta.hidden = true;
-    bloco.appendChild(cta);
-  }
-  const aviso = criarEl("p", "roteiro-aviso-fidelidade",
-    "Roteiro baseado apenas no resumo do julgado. Confira o julgado original antes de publicar.");
-  if (compacto) aviso.hidden = true; // no histórico só aparece com o item expandido
-  bloco.appendChild(aviso);
-  item.appendChild(bloco);
-
-  const acoes = document.createElement("div");
-  acoes.className = "roteiro-acoes";
-  if (compacto) {
-    const alternar = criarEl("button", "botao-secundario", "Ver texto completo");
-    alternar.type = "button";
-    alternar.setAttribute("aria-expanded", "false");
-    alternar.addEventListener("click", () => {
-      const aberto = texto.classList.toggle("recolhido") === false;
-      alternar.setAttribute("aria-expanded", String(aberto));
-      alternar.textContent = aberto ? "Recolher" : "Ver texto completo";
-      const cta = bloco.querySelector(".roteiro-cta");
-      if (cta) cta.hidden = !aberto;
-      aviso.hidden = !aberto;
-    });
-    acoes.appendChild(alternar);
-  }
-  acoes.appendChild(botaoCopiarTexto(() => textoParaCopiar(r)));
+  item.appendChild(meta);
+  item.appendChild(corpoRoteiro(r));
+  item.appendChild(criarEl("p", "roteiro-aviso-fidelidade", AVISO_FIDELIDADE));
+  const acoes = criarEl("div", "roteiro-acoes", "");
+  acoes.appendChild(botaoCopiar("Copiar roteiro", () => textoBruto(r)));
   item.appendChild(acoes);
   return item;
 }
 
+// ---- Meus roteiros gerados: cartão compacto, agrupado por período ----
+let idCartaoGerado = 0;
+function criarCartaoGerado(r) {
+  const id = "gerado-corpo-" + (++idCartaoGerado);
+  const item = document.createElement("article");
+  item.className = "rot-cartao rot-compacto item-gerado";
+
+  const cab = document.createElement("header");
+  const chips = criarEl("div", "roteiro-chips", "");
+  chips.appendChild(criarEl("span", "selo-formato", nomeFormato(r.tipo_slug)));
+  if (r.area) chips.appendChild(criarEl("span", "chip-area", rotuloArea(r.area)));
+  cab.appendChild(chips);
+  cab.appendChild(criarEl("span", "roteiro-semana", "Gerado em " + formatarDataHoraBR(r.criado_em)));
+  item.appendChild(cab);
+
+  item.appendChild(criarEl("h4", "rot-assunto", r.assunto || "Assunto não informado"));
+  item.appendChild(criarEl("p", "rot-linha-meta", linhaMeta(r)));
+
+  const detalhe = document.createElement("div");
+  detalhe.id = id;
+  detalhe.hidden = true;
+  detalhe.appendChild(corpoRoteiro(r));
+  detalhe.appendChild(criarEl("p", "roteiro-aviso-fidelidade", AVISO_FIDELIDADE));
+  item.appendChild(detalhe);
+
+  const acoes = criarEl("div", "roteiro-acoes", "");
+  const alternar = criarEl("button", "botao-secundario", "Ver roteiro");
+  alternar.type = "button";
+  alternar.setAttribute("aria-expanded", "false");
+  alternar.setAttribute("aria-controls", id);
+  alternar.addEventListener("click", () => {
+    detalhe.hidden = !detalhe.hidden;
+    alternar.setAttribute("aria-expanded", String(!detalhe.hidden));
+    alternar.textContent = detalhe.hidden ? "Ver roteiro" : "Recolher";
+  });
+  acoes.appendChild(alternar);
+  acoes.appendChild(botaoCopiar("Copiar", () => textoBruto(r)));
+  item.appendChild(acoes);
+  return item;
+}
+
+function diaSaoPaulo(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d); // yyyy-mm-dd
+}
+
+// Segunda-feira da semana de `hoje` (yyyy-mm-dd), sem fuso: só aritmética de calendário.
+function inicioSemanaChave(hoje) {
+  const [a, m, d] = hoje.split("-").map(Number);
+  const t = new Date(Date.UTC(a, m - 1, d));
+  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7));
+  return t.toISOString().slice(0, 10);
+}
+
+function periodoDoRoteiro(r, hoje, semana) {
+  const dia = diaSaoPaulo(r.criado_em);
+  if (dia === hoje) return "Hoje";
+  return dia && dia >= semana ? "Esta semana" : "Anteriores";
+}
+
+function preencherFiltroGerados(select, todos, valores, rotular) {
+  const atual = select.value;
+  select.replaceChildren(new Option(todos, ""));
+  for (const v of valores) select.appendChild(new Option(rotular(v), v));
+  select.value = [...select.options].some((o) => o.value === atual) ? atual : "";
+}
+
 function renderizarHistoricoGerados() {
   const lista = document.getElementById("lista-gerados");
+  const barra = document.getElementById("filtros-gerados");
+  const selFormato = document.getElementById("filtro-gerados-formato");
+  const selArea = document.getElementById("filtro-gerados-area");
   lista.replaceChildren();
+  barra.hidden = historicoGerados.length === 0;
   if (historicoGerados.length === 0) {
-    lista.textContent = "Você ainda não gerou nenhum roteiro. Escolha um julgado e um formato acima para começar.";
+    lista.textContent = "Você ainda não gerou nenhum roteiro. Escolha um julgado e um formato em “Gerar roteiro” para começar; eles ficam guardados aqui.";
     return;
   }
-  for (const r of historicoGerados) lista.appendChild(criarCartaoGerado(r, true));
+  preencherFiltroGerados(selFormato, "Todos os formatos",
+    [...new Set(historicoGerados.map((r) => r.tipo_slug))], nomeFormato);
+  preencherFiltroGerados(selArea, "Todas as áreas",
+    [...new Set(historicoGerados.map((r) => r.area).filter(Boolean))].sort(), rotuloArea);
+
+  const filtrados = historicoGerados.filter((r) =>
+    (!selFormato.value || r.tipo_slug === selFormato.value) && (!selArea.value || r.area === selArea.value));
+  document.getElementById("contador-gerados").textContent =
+    `${filtrados.length} roteiro${filtrados.length === 1 ? "" : "s"}`;
+  if (filtrados.length === 0) {
+    lista.textContent = "Nenhum roteiro com esses filtros.";
+    return;
+  }
+
+  const hoje = diaSaoPaulo(new Date().toISOString());
+  const semana = inicioSemanaChave(hoje);
+  const grupos = new Map([["Hoje", []], ["Esta semana", []], ["Anteriores", []]]);
+  for (const r of filtrados) grupos.get(periodoDoRoteiro(r, hoje, semana)).push(r);
+  for (const [titulo, itens] of grupos) {
+    if (itens.length === 0) continue;
+    const grupo = criarEl("section", "grupo-gerados", "");
+    grupo.appendChild(criarEl("h3", "grupo-gerados-titulo", `${titulo} · ${itens.length}`));
+    for (const r of itens) grupo.appendChild(criarCartaoGerado(r));
+    lista.appendChild(grupo);
+  }
 }
 
 async function carregarHistoricoGerados() {
@@ -782,7 +876,7 @@ async function carregarHistoricoGerados() {
     .from("roteiros_usuario")
     .select("id, tipo_slug, area, assunto, orgao_julgador, data_julgamento, numero_julgado, texto, cta, criado_em")
     .order("criado_em", { ascending: false })
-    .limit(30);
+    .limit(LIMITE_HISTORICO);
   if (error || !data) {
     document.getElementById("lista-gerados").textContent = "Não foi possível carregar seu histórico.";
     return;
@@ -796,6 +890,7 @@ async function gerarRoteiro() {
   gerando = true;
   mostrarAvisoGerar("");
   atualizarBotaoGerar();
+  const julgado = julgadoEscolhido();
 
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -835,15 +930,25 @@ async function gerarRoteiro() {
       return;
     }
 
+    // Campos do julgado que a resposta não trouxer vêm do julgado escolhido.
+    const roteiro = { ...dados.roteiro };
+    if (julgado) {
+      for (const k of ["area", "assunto", "orgao_julgador", "data_julgamento", "numero_julgado"]) {
+        if (roteiro[k] == null) roteiro[k] = julgado[k];
+      }
+    }
+    if (!roteiro.tipo_slug) roteiro.tipo_slug = formatoSelecionado;
+    if (!roteiro.criado_em) roteiro.criado_em = new Date().toISOString();
+
     const resultado = document.getElementById("resultado-gerar");
-    resultado.replaceChildren(criarCartaoGerado(dados.roteiro, false));
+    resultado.replaceChildren(criarCartaoResultado(roteiro));
     resultado.hidden = false;
     resultado.focus({ preventScroll: true });
     resultado.scrollIntoView({
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start",
     });
 
-    historicoGerados = [dados.roteiro, ...historicoGerados.filter((x) => x.id !== dados.roteiro.id)].slice(0, 30);
+    historicoGerados = [roteiro, ...historicoGerados.filter((x) => x.id !== roteiro.id)].slice(0, LIMITE_HISTORICO);
     renderizarHistoricoGerados();
     if (dados.uso && Number.isFinite(dados.uso.usados)) {
       usoMes = { usados: dados.uso.usados, limite: dados.uso.limite || usoMes.limite };
@@ -861,14 +966,19 @@ function carregarGerador() {
   const select = document.getElementById("filtro-julgados-area");
   select.appendChild(new Option("Todas as áreas", ""));
   for (const area of areasAssinadasAtual || []) select.appendChild(new Option(rotuloArea(area), area));
+  select.hidden = (areasAssinadasAtual || []).length < 2;
   select.addEventListener("change", atualizarJulgados);
-  document.getElementById("busca-julgados").addEventListener("input", atualizarJulgados);
-  document.getElementById("mostrar-incompletos").addEventListener("change", atualizarJulgados);
+  document.getElementById("mostrar-incompletos").addEventListener("click", () => {
+    incluirIncompletos = !incluirIncompletos;
+    atualizarJulgados();
+  });
   document.getElementById("mais-julgados").addEventListener("click", () => {
     limiteJulgados += JULGADOS_POR_PAGINA;
     desenharJulgados(false);
   });
   document.getElementById("botao-gerar").addEventListener("click", gerarRoteiro);
+  document.getElementById("filtro-gerados-formato").addEventListener("change", renderizarHistoricoGerados);
+  document.getElementById("filtro-gerados-area").addEventListener("change", renderizarHistoricoGerados);
   usoMes.limite = limiteMensal();
   atualizarContador();
   carregarJulgados();
@@ -884,25 +994,48 @@ iniciar().then(() => {
   }
 });
 
-// Destaque do item ativo na navegação lateral (aditivo, tolera elementos ausentes).
+// Navegação lateral: visão "Painel" (todas as seções) e visão "Assinatura", alternadas por hash sem recarregar.
+// Nas seções do painel, o item ativo acompanha a rolagem.
 (function () {
+  const visaoPainel = document.getElementById("visao-painel");
+  const visaoAssinatura = document.getElementById("visao-assinatura");
   const links = Array.from(document.querySelectorAll(".lateral nav a[href^='#']"));
-  const secoes = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
-  if (!links.length || !secoes.length) return;
-  function marcar(secao) {
+  const linksSecao = links.filter((a) => a.getAttribute("href") !== "#assinatura");
+  const secoes = linksSecao.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+  if (!visaoPainel || !visaoAssinatura || !links.length) return;
+  const emAssinatura = () => location.hash === "#assinatura" || location.hash === "#secao-assinatura";
+
+  function marcar(href) {
     links.forEach((a) => {
-      const ativo = !!secao && a.getAttribute("href") === "#" + secao.id;
+      const ativo = a.getAttribute("href") === href;
       a.classList.toggle("ativo", ativo);
       if (ativo) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
     });
   }
-  marcar(secoes[0]);
+  function aplicarVisao(rolar) {
+    const ass = emAssinatura();
+    visaoPainel.hidden = ass;
+    visaoAssinatura.hidden = !ass;
+    if (ass) {
+      marcar("#assinatura");
+      if (rolar) window.scrollTo({ top: 0, behavior: "instant" });
+    } else if (rolar) {
+      const alvo = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
+      if (alvo) alvo.scrollIntoView(); else window.scrollTo({ top: 0, behavior: "instant" });
+      if (alvo && linksSecao.some((a) => a.getAttribute("href") === location.hash)) marcar(location.hash);
+    }
+  }
+  window.addEventListener("hashchange", () => aplicarVisao(true));
+  aplicarVisao(false);
+  if (!secoes.length) return;
+  if (!emAssinatura()) marcar("#" + secoes[0].id);
   if (!("IntersectionObserver" in window)) return;
+  const marcarSecao = (s) => { if (!emAssinatura()) marcar("#" + s.id); };
   const io = new IntersectionObserver((entradas) => {
-    entradas.forEach((e) => { if (e.isIntersecting) marcar(e.target); });
+    entradas.forEach((e) => { if (e.isIntersecting) marcarSecao(e.target); });
   }, { rootMargin: "-25% 0px -65% 0px" });
   secoes.forEach((s) => io.observe(s));
   window.addEventListener("scroll", () => {
-    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) marcar(secoes[secoes.length - 1]);
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) marcarSecao(secoes[secoes.length - 1]);
   }, { passive: true });
 })();

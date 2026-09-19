@@ -21,8 +21,11 @@
       <a href="#secao-perfil">Painel</a>
       <a href="#secao-sugeridos" class="sub">Sugeridos</a>
       <a href="#secao-tendencias" class="sub">Tendências</a>
-      <a href="#secao-meus-roteiros" class="sub">Meus roteiros</a>
+      <a href="#meus-roteiros">Meus roteiros</a>
+      <a href="#estudio">Estúdio Astra</a>
+      <a href="#perfil">Meu perfil</a>
       <a href="#assinatura">Assinatura</a>
+      <a href="#contato">Fale conosco</a>
     </nav>
     <button type="button" id="botao-sair">Sair</button>
   </aside>
@@ -33,12 +36,15 @@
     <section id="secao-perfil" aria-label="Seu perfil">
       <div class="perfil">
         <div class="perfil-topo">
-          <div>
-            <h1 id="nome-advogado">Carregando...</h1>
+          <a href="#perfil" id="avatar-topo" class="avatar" aria-label="Abrir meu perfil"></a>
+          <div class="perfil-id">
+            <h1 id="saudacao">Painel</h1>
+            <p id="nome-advogado" class="perfil-nome">Carregando...</p>
             <p id="oab-advogado" class="perfil-oab"></p>
           </div>
           <span id="plano-advogado" class="selo-formato" hidden></span>
         </div>
+        <p id="acolhimento" class="perfil-status" hidden>Seus roteiros da semana estão prontos para gerar.</p>
         <ul id="areas-advogado" class="chips-areas" aria-label="Áreas assinadas"></ul>
         <p id="status-assinatura" class="perfil-status"></p>
         <dl class="indicadores">
@@ -68,7 +74,9 @@
       <p class="secao-intro">Assuntos jurídicos mais pesquisados no Google esta semana, nas suas áreas. Use-os para escolher sobre o que gravar.</p>
       <div id="lista-trends">Carregando...</div>
     </section>
+    </div>
 
+    <div id="visao-meus-roteiros" class="visao" hidden>
     <section id="secao-meus-roteiros">
       <h2 class="secao-titulo">Meus roteiros</h2>
       <div class="abas" role="tablist" aria-label="Meus roteiros" hidden>
@@ -92,6 +100,54 @@
     </section>
     </div>
 
+    <div id="visao-estudio" class="visao" hidden>
+    <section id="secao-estudio">
+      <h2 class="secao-titulo">Estúdio Astra</h2>
+      <p class="secao-intro">Aulas para transformar o roteiro em vídeo: luz, som, teleprompter e as principais ferramentas de gravação.</p>
+      <div id="lista-estudio" class="lista-estudio">Carregando...</div>
+    </section>
+    </div>
+
+    <div id="visao-perfil" class="visao" hidden>
+    <section id="secao-perfil-visao">
+      <h2 class="secao-titulo">Meu perfil</h2>
+      <div class="perfil-foto">
+        <div id="avatar-perfil" class="avatar avatar-grande" aria-hidden="true"></div>
+        <div>
+          <div class="perfil-foto-acoes">
+            <button type="button" id="botao-foto" class="botao-secundario">Alterar foto</button>
+            <button type="button" id="botao-remover-foto" class="botao-secundario" hidden>Remover</button>
+          </div>
+          <input type="file" id="arquivo-foto" accept="image/jpeg,image/png,image/webp" hidden>
+          <p class="mensagem" id="mensagem-foto" role="status">JPEG, PNG ou WEBP, até 5 MB. A foto é recortada em formato quadrado.</p>
+        </div>
+      </div>
+      <div class="painel-assinatura">
+        <h3 class="perfil-dados-titulo">Meus dados</h3>
+        <dl class="dados-perfil">
+          <div><dt>Nome</dt><dd id="dado-nome">—</dd></div>
+          <div><dt>OAB/UF</dt><dd id="dado-oab">—</dd></div>
+          <div><dt>E-mail</dt><dd id="dado-email">—</dd></div>
+          <div><dt>Telefone</dt><dd id="dado-telefone">—</dd></div>
+          <div><dt>Plano e áreas</dt><dd id="dado-plano">—</dd></div>
+        </dl>
+        <p class="mensagem">Para alterar seus dados, use o <a href="#contato">Fale conosco</a>.</p>
+      </div>
+    </section>
+    </div>
+
+    <div id="visao-contato" class="visao" hidden>
+    <section id="secao-contato">
+      <h2 class="secao-titulo">Fale conosco</h2>
+      <p class="secao-intro">Dúvidas, sugestões ou suporte: escolha o canal.</p>
+      <div class="contato-botoes">
+        <a class="botao-primario botao-link" data-contato="email">Enviar e-mail</a>
+        <a class="botao-secundario botao-link" data-contato="whatsapp">Falar no WhatsApp</a>
+      </div>
+      <p class="mensagem" data-contato-dica></p>
+    </section>
+    </div>
+
     <div id="visao-assinatura" class="visao" hidden>
     <section id="secao-assinatura">
       <h2 class="secao-titulo">Assinatura</h2>
@@ -105,5 +161,6 @@
   </main>
   <script src="supabase-client.js"></script>
   <script src="painel.js"></script>
+  <script src="../contato.js"></script>
 </body>
 </html>

@@ -22,6 +22,7 @@
         <a href="#preco">Preço</a>
         <a href="#confianca">Confiança</a>
         <a href="#duvidas">Dúvidas</a>
+        <a href="#contato">Fale conosco</a>
       </nav>
       <div class="acoes">
         <a class="botao botao-contorno botao-pequeno" href="painel/login.html">Entrar</a>
@@ -276,6 +277,18 @@
         <p class="garantia">7 dias de arrependimento, com devolução do valor pago (CDC, art. 49)</p>
       </div>
     </section>
+
+    <section class="contato escuro" id="contato">
+      <div class="wrap">
+        <h2>Fale conosco</h2>
+        <p>Dúvidas, sugestões ou suporte: escolha o canal.</p>
+        <div class="contato-botoes">
+          <a class="botao botao-primario" data-contato="email">Enviar e-mail</a>
+          <a class="botao botao-contorno" data-contato="whatsapp">Falar no WhatsApp</a>
+        </div>
+        <p class="contato-dica" data-contato-dica></p>
+      </div>
+    </section>
   </main>
 
   <footer class="rodape escuro">
@@ -286,6 +299,7 @@
     </div>
   </footer>
 
+  <script src="contato.js"></script>
   <script>
     (function () {
       var estado = new URLSearchParams(location.search).get("pagamento");

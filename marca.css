@@ -195,10 +195,11 @@ section[id] { scroll-margin-top: 68px; }
 }
 .passos h3 { font-family: var(--fonte-display); font-weight: 400; font-size: 1.25rem; line-height: 1.3; letter-spacing: 0.03em; padding-top: 9px; }
 .passos p { margin-top: 4px; color: var(--texto-suave); max-width: 52ch; }
-.estudio { margin-top: 40px; padding: 28px 24px; border: 1px solid var(--borda); border-radius: 24px; background: var(--lavanda); max-width: 760px; }
+#como-funciona .titulo-secao { text-align: center; }
+.estudio { margin: 40px auto 0; padding: 28px 24px; border: 1px solid var(--borda); border-radius: 24px; background: var(--lavanda); max-width: 760px; text-align: center; }
 .estudio h3 { font-family: var(--fonte-display); font-weight: 400; font-size: 1.5rem; letter-spacing: 0.03em; }
-.estudio p { margin-top: 8px; color: var(--texto-suave); max-width: 60ch; }
-.ferramentas { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.estudio p { margin: 8px auto 0; color: var(--texto-suave); max-width: 60ch; }
+.ferramentas { margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .ferramentas li { padding: 6px 14px; border: 1px solid var(--borda); border-radius: 999px; background: var(--claro); font-size: 0.9rem; font-weight: 500; color: var(--texto); }
 
 /* Duas colunas */
@@ -336,6 +337,18 @@ section[id] { scroll-margin-top: 68px; }
 .cta .botao { margin-top: 28px; }
 .cta .garantia { margin-top: 16px; }
 
+/* Fale conosco */
+.contato { background: var(--escuro); color: var(--texto-escuro); padding-block: 56px; text-align: center; border-top: 1px solid var(--borda-escura); }
+.contato h2 { font-family: var(--fonte-display); font-weight: 300; font-size: clamp(1.6rem, 3.4vw, 2.2rem); letter-spacing: 0.03em; line-height: 1.2; }
+.contato p { margin: 12px auto 0; max-width: 44ch; color: var(--texto-escuro-suave); }
+.contato-botoes { margin-top: 24px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.contato .contato-dica { margin-top: 14px; font-size: 0.9rem; }
+.contato .contato-dica:empty { display: none; }
+.botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+.botao[aria-disabled="true"]:hover { transform: none; filter: none; background: transparent; }
+.botao-primario[aria-disabled="true"]:hover { background: var(--degrade); }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 /* Rodapé */
 .rodape { background: var(--escuro); color: var(--texto-escuro-suave); border-top: 1px solid var(--borda-escura); font-size: 0.9rem; }
 .rodape .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding-block: 20px; }
@@ -375,6 +388,7 @@ section[id] { scroll-margin-top: 68px; }
   .plano .valor { font-size: 2.6rem; }
   .selo { left: 22px; }
   .hero .botoes .botao { flex: 1 1 100%; }
+  .contato-botoes .botao { flex: 1 1 100%; }
   .exemplo { padding: 22px 16px; }
 }
 

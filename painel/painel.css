@@ -187,7 +187,26 @@ body.auth {
 
 /* Cabeçalho do advogado */
 .perfil { padding: 32px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--superficie); box-shadow: var(--sombra); }
-.perfil-topo { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
+.perfil-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.perfil-id { flex: 1 1 200px; min-width: 0; }
+.perfil-topo .selo-formato { margin-left: auto; }
+.perfil-nome { margin-top: 2px; color: var(--grafite); font-weight: 500; overflow-wrap: anywhere; }
+.avatar { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: var(--indigo-fraco); color: var(--indigo-hover); text-decoration: none; font-family: var(--fonte-display); font-weight: 500; font-size: 1.15rem; letter-spacing: 0.03em; border: 1px solid rgba(79, 70, 229, 0.25); }
+.avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.avatar-grande { width: 96px; height: 96px; font-size: 1.9rem; }
+.perfil-foto { margin-top: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+.perfil-foto-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.perfil-foto .mensagem { margin-top: 10px; max-width: 46ch; }
+.perfil-dados-titulo { font-family: var(--fonte-display); font-weight: 500; font-size: 1.05rem; letter-spacing: 0.03em; color: var(--marinho); }
+.dados-perfil { margin-top: 16px; display: grid; }
+.dados-perfil > div { padding: 12px 0; border-top: 1px solid var(--borda); display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 1fr); gap: 4px 16px; }
+.dados-perfil dt { color: var(--texto-suave); font-size: 0.9rem; }
+.dados-perfil dd { margin: 0; overflow-wrap: anywhere; }
+.painel-assinatura .mensagem a { color: var(--indigo-hover); text-underline-offset: 3px; }
+.contato-botoes { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; }
+.contato-botoes .botao-primario, .contato-botoes .botao-secundario { min-height: 46px; padding: 0 26px; }
+[data-contato][aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .perfil h1 { font-family: var(--fonte-display); font-weight: 300; font-size: clamp(1.6rem, 2.6vw, 2rem); letter-spacing: 0.02em; line-height: 1.2; color: var(--marinho); overflow-wrap: anywhere; }
 .perfil-oab { margin-top: 4px; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
 .chips-areas { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -340,6 +359,24 @@ body.auth {
 .rot-compacto .roteiro-acoes { margin-top: 16px; }
 .rot-compacto .rot-texto { margin-top: 16px; }
 
+.botao-link { display: inline-flex; align-items: center; text-decoration: none; }
+
+/* Estúdio Astra */
+.lista-estudio { margin-top: 28px; color: var(--texto-suave); }
+.trilha + .trilha { margin-top: 48px; }
+.trilha-titulo { font-family: var(--fonte-display); font-weight: 500; font-size: 1.15rem; letter-spacing: 0.03em; color: var(--marinho); padding-bottom: 10px; border-bottom: 1px solid var(--borda); }
+.grade-aulas { margin-top: 20px; display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); align-items: start; }
+.aula-cartao { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--superficie); box-shadow: var(--sombra); }
+.aula-titulo { font-family: var(--fonte-display); font-weight: 500; font-size: 1.05rem; line-height: 1.3; letter-spacing: 0.02em; color: var(--marinho); overflow-wrap: anywhere; }
+.aula-descricao { color: var(--texto-suave); font-size: 0.92rem; overflow-wrap: anywhere; }
+.aula-rodape { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 44px; }
+.aula-rodape:empty { display: none; }
+.aula-duracao { color: var(--texto-suave); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.aula-embreve { margin-left: auto; padding: 4px 14px; border-radius: 999px; border: 1px solid var(--borda); background: var(--fundo); color: var(--texto-suave); font-size: 0.85rem; cursor: default; user-select: none; }
+.aula-assistir { margin-left: auto; }
+.aula-video { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--escuro); }
+.aula-video iframe { display: block; width: 100%; height: 100%; border: 0; }
+
 /* Assinatura */
 .painel-assinatura { margin-top: 24px; padding: 28px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--superficie); box-shadow: var(--sombra); }
 #botao-cancelar { margin-top: 20px; border-color: rgba(75, 78, 99, 0.35); color: var(--texto-suave); }
@@ -365,6 +402,8 @@ body.auth {
   .painel-assinatura { padding: 20px 16px; }
   .gerador-acoes .botao-primario, .julgado-card > .roteiro-acoes .botao-primario { width: 100%; }
   .filtros-gerados .julgados-contador { margin-left: 0; width: 100%; }
+  .dados-perfil > div { grid-template-columns: 1fr; }
+  .contato-botoes .botao-primario, .contato-botoes .botao-secundario { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

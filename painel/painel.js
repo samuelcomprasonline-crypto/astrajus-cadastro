@@ -31,6 +31,125 @@ function definirIndicador(id, numero, complemento) {
   if (complemento) dd.appendChild(document.createTextNode(" " + complemento));
 }
 
+function saudacaoHora() {
+  const h = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hourCycle: "h23", timeZone: "America/Sao_Paulo" }).format(new Date()));
+  return h >= 5 && h < 12 ? "Bom dia" : h >= 12 && h < 18 ? "Boa tarde" : "Boa noite";
+}
+
+// ---------- Avatar (bucket privado "avatares", pasta <uid>/) ----------
+let avatarUrl = null;
+const CAMINHO_AVATAR = () => `${sessaoAtual.user.id}/avatar.jpg`;
+
+function iniciais(nome) {
+  const p = (nome || "").trim().split(/\s+/).filter(Boolean);
+  return ((p[0] || "")[0] || "") + (p.length > 1 ? p[p.length - 1][0] : "");
+}
+
+function pintarAvatares() {
+  for (const id of ["avatar-topo", "avatar-perfil"]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (avatarUrl) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = avatarUrl;
+      img.addEventListener("error", () => { avatarUrl = null; pintarAvatares(); }, { once: true });
+      el.replaceChildren(img);
+    } else {
+      el.replaceChildren(criarEl("span", "avatar-iniciais", iniciais(advogadoAtual && advogadoAtual.nome).toUpperCase()));
+    }
+  }
+  const rem = document.getElementById("botao-remover-foto");
+  if (rem) rem.hidden = !avatarUrl;
+}
+
+async function carregarAvatar() {
+  const msg = document.getElementById("mensagem-foto");
+  try {
+    const { data, error } = await supabaseClient.storage.from("avatares").createSignedUrl(CAMINHO_AVATAR(), 3600);
+    if (error || !data || !data.signedUrl) {
+      avatarUrl = null;
+      if (error && !/not.?found|does not exist/i.test(error.message || "")) msg.textContent = "Não foi possível carregar sua foto agora. Suas iniciais aparecem no lugar.";
+    } else {
+      avatarUrl = data.signedUrl;
+    }
+  } catch {
+    avatarUrl = null;
+  }
+  pintarAvatares();
+}
+
+// Recorte quadrado central, 256x256 JPEG (< 512 KB).
+function prepararFoto(arquivo) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const lado = Math.min(img.naturalWidth, img.naturalHeight);
+      const c = document.createElement("canvas");
+      c.width = c.height = 256;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.drawImage(img, (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, 256, 256);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error("blob"))), "image/jpeg", 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("imagem")); };
+    img.src = url;
+  });
+}
+
+function configurarPerfil() {
+  const msg = document.getElementById("mensagem-foto");
+  const entrada = document.getElementById("arquivo-foto");
+  const botao = document.getElementById("botao-foto");
+  const remover = document.getElementById("botao-remover-foto");
+  botao.addEventListener("click", () => entrada.click());
+  entrada.addEventListener("change", async () => {
+    const arq = entrada.files[0];
+    entrada.value = "";
+    if (!arq) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(arq.type)) { msg.textContent = "Formato não aceito. Use uma imagem JPEG, PNG ou WEBP."; return; }
+    if (arq.size > 5 * 1024 * 1024) { msg.textContent = "A imagem é grande demais. Escolha uma de até 5 MB."; return; }
+    botao.disabled = remover.disabled = true;
+    msg.textContent = "Enviando foto...";
+    try {
+      const blob = await prepararFoto(arq);
+      const { error } = await supabaseClient.storage.from("avatares")
+        .upload(CAMINHO_AVATAR(), blob, { upsert: true, contentType: "image/jpeg" });
+      if (error) throw error;
+      msg.textContent = "Foto atualizada.";
+      await carregarAvatar();
+    } catch {
+      msg.textContent = "Não foi possível enviar a foto agora. Tente de novo em instantes.";
+    } finally {
+      botao.disabled = remover.disabled = false;
+    }
+  });
+  remover.addEventListener("click", async () => {
+    botao.disabled = remover.disabled = true;
+    const { error } = await supabaseClient.storage.from("avatares").remove([CAMINHO_AVATAR()]);
+    botao.disabled = remover.disabled = false;
+    if (error) { msg.textContent = "Não foi possível remover a foto agora."; return; }
+    avatarUrl = null;
+    msg.textContent = "Foto removida.";
+    pintarAvatares();
+  });
+}
+
+async function carregarDadosPerfil() {
+  const dado = (id, v) => { document.getElementById(id).textContent = v || "—"; };
+  dado("dado-nome", advogadoAtual.nome);
+  dado("dado-oab", `OAB/${advogadoAtual.oab_uf} ${advogadoAtual.oab_numero}`);
+  dado("dado-email", sessaoAtual.user.email);
+  dado("dado-plano", areasAssinadasAtual.length
+    ? `Plano ${NOMES_PLANO[nivelUsuario()]}: ${areasAssinadasAtual.map(rotuloArea).join(", ")}` : "Nenhuma assinatura ativa");
+  // email/telefone da tabela advogados (RLS própria); se a leitura falhar, mantém o e-mail da sessão.
+  const { data } = await supabaseClient.from("advogados").select("email, telefone").maybeSingle();
+  if (data) { if (data.email) dado("dado-email", data.email); dado("dado-telefone", data.telefone); }
+}
+
 async function iniciar() {
   sessaoAtual = await exigirSessao();
   if (!sessaoAtual) return;
@@ -45,6 +164,9 @@ async function iniciar() {
     return;
   }
   advogadoAtual = advogado;
+  document.getElementById("saudacao").textContent = `${saudacaoHora()}, ${advogado.nome.trim().split(/\s+/)[0]}`;
+  document.getElementById("acolhimento").hidden = false;
+  pintarAvatares();
   document.getElementById("nome-advogado").textContent = advogado.nome;
   document.getElementById("oab-advogado").textContent = `OAB/${advogado.oab_uf} ${advogado.oab_numero}`;
 
@@ -827,7 +949,9 @@ function montarResultado(card, j, est) {
   const fechar = criarEl("button", "botao-secundario", "Fechar");
   fechar.type = "button";
   fechar.addEventListener("click", fecharCartao);
-  acoes.append(outro, fechar);
+  const ver = criarEl("a", "botao-secundario botao-link", "Ver em Meus roteiros");
+  ver.href = "#meus-roteiros";
+  acoes.append(outro, ver, fechar);
   card.appendChild(acoes);
 }
 
@@ -1000,7 +1124,74 @@ async function gerarRoteiro(j, est) {
   }
 }
 
+// ---------- Estúdio Astra (aulas_estudio) ----------
+const ID_YOUTUBE = /^[A-Za-z0-9_-]{6,20}$/;
+
+function criarCartaoAula(a) {
+  const card = criarEl("article", "aula-cartao", "");
+  card.appendChild(criarEl("h4", "aula-titulo", a.titulo));
+  if (a.descricao) card.appendChild(criarEl("p", "aula-descricao", a.descricao));
+  const rodape = criarEl("div", "aula-rodape", "");
+  if (a.duracao_min) rodape.appendChild(criarEl("span", "aula-duracao", `${a.duracao_min} min`));
+  if (a.video_youtube_id && ID_YOUTUBE.test(a.video_youtube_id)) {
+    const btn = criarEl("button", "botao-secundario aula-assistir", "Assistir");
+    btn.type = "button";
+    btn.setAttribute("aria-label", `Assistir: ${a.titulo}`);
+    btn.addEventListener("click", () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube-nocookie.com/embed/${a.video_youtube_id}`;
+      iframe.title = `Vídeo: ${a.titulo}`;
+      iframe.loading = "lazy";
+      iframe.allowFullscreen = true;
+      iframe.allow = "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+      iframe.referrerPolicy = "strict-origin-when-cross-origin";
+      const quadro = criarEl("div", "aula-video", "");
+      quadro.appendChild(iframe);
+      card.insertBefore(quadro, rodape);
+      btn.remove();
+      iframe.focus();
+    });
+    rodape.appendChild(btn);
+  } else {
+    rodape.appendChild(criarEl("span", "aula-embreve", "Em breve"));
+  }
+  card.appendChild(rodape);
+  return card;
+}
+
+async function carregarEstudio() {
+  const lista = document.getElementById("lista-estudio");
+  const { data, error } = await supabaseClient
+    .from("aulas_estudio")
+    .select("id, trilha, titulo, descricao, video_youtube_id, duracao_min, ordem, publicada")
+    .order("ordem", { ascending: true });
+  if (error) { lista.textContent = "Não foi possível carregar as aulas agora. Tente de novo em instantes."; return; }
+  const aulas = (data || []).filter((a) => a.publicada !== false);
+  if (aulas.length === 0) {
+    lista.textContent = "As aulas do Estúdio Astra estão sendo preparadas. Volte em breve.";
+    return;
+  }
+  const trilhas = new Map();
+  for (const a of aulas) {
+    const nome = a.trilha || "Aulas";
+    if (!trilhas.has(nome)) trilhas.set(nome, []);
+    trilhas.get(nome).push(a);
+  }
+  lista.replaceChildren();
+  for (const [nome, itens] of trilhas) {
+    const grupo = criarEl("section", "trilha", "");
+    grupo.appendChild(criarEl("h3", "trilha-titulo", nome));
+    const grade = criarEl("div", "grade-aulas", "");
+    for (const a of itens) grade.appendChild(criarCartaoAula(a));
+    grupo.appendChild(grade);
+    lista.appendChild(grupo);
+  }
+}
+
 function iniciarPainel() {
+  configurarPerfil();
+  carregarAvatar();
+  carregarDadosPerfil();
   montarFiltroArea();
   document.getElementById("mostrar-incompletos").addEventListener("click", () => {
     incluirIncompletos = !incluirIncompletos;
@@ -1017,6 +1208,7 @@ function iniciarPainel() {
   atualizarContador();
   // Formatos primeiro: cartões abertos e histórico mostram o nome deles.
   carregarFormatos().then(() => { carregarJulgados(); carregarHistoricoGerados(); });
+  carregarEstudio();
   carregarUsoMes();
   carregarSemana();
   carregarTendencias().then(carregarProntos); // "em alta" nos prontos depende das tendências
@@ -1029,16 +1221,21 @@ iniciar().then(() => {
   }
 });
 
-// Navegação lateral: visão "Painel" (todas as seções) e visão "Assinatura", alternadas por hash sem recarregar.
-// Nas seções do painel, o item ativo acompanha a rolagem.
+// Navegação lateral: 6 visões (Painel, Meus roteiros, Estúdio, Perfil, Assinatura, Contato) alternadas por hash sem recarregar.
+// Hash desconhecido = visão Painel. Na visão Painel, o item ativo acompanha a rolagem.
 (function () {
-  const visaoPainel = document.getElementById("visao-painel");
-  const visaoAssinatura = document.getElementById("visao-assinatura");
+  const VISOES = {
+    "#meus-roteiros": "meus-roteiros", "#secao-meus-roteiros": "meus-roteiros",
+    "#estudio": "estudio", "#secao-estudio": "estudio",
+    "#perfil": "perfil", "#contato": "contato",
+    "#assinatura": "assinatura", "#secao-assinatura": "assinatura",
+  };
+  const visoes = ["painel", "meus-roteiros", "estudio", "perfil", "assinatura", "contato"];
   const links = Array.from(document.querySelectorAll(".lateral nav a[href^='#']"));
-  const linksSecao = links.filter((a) => a.getAttribute("href") !== "#assinatura");
+  const linksSecao = links.filter((a) => a.classList.contains("sub"));
   const secoes = linksSecao.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
-  if (!visaoPainel || !visaoAssinatura || !links.length) return;
-  const emAssinatura = () => location.hash === "#assinatura" || location.hash === "#secao-assinatura";
+  if (!links.length) return;
+  const visaoAtual = () => VISOES[location.hash] || "painel";
 
   function marcar(href) {
     links.forEach((a) => {
@@ -1048,24 +1245,24 @@ iniciar().then(() => {
     });
   }
   function aplicarVisao(rolar) {
-    const ass = emAssinatura();
-    visaoPainel.hidden = ass;
-    visaoAssinatura.hidden = !ass;
-    if (ass) {
-      marcar("#assinatura");
+    const v = visaoAtual();
+    for (const nome of visoes) document.getElementById("visao-" + nome).hidden = nome !== v;
+    if (v !== "painel") {
+      marcar("#" + v);
       if (rolar) window.scrollTo({ top: 0, behavior: "instant" });
-    } else if (rolar) {
+    } else {
+      marcar(secoes.length ? "#" + secoes[0].id : "#secao-perfil");
       const alvo = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
-      if (alvo) alvo.scrollIntoView(); else window.scrollTo({ top: 0, behavior: "instant" });
+      if (rolar) {
+        if (alvo) alvo.scrollIntoView(); else window.scrollTo({ top: 0, behavior: "instant" });
+      }
       if (alvo && linksSecao.some((a) => a.getAttribute("href") === location.hash)) marcar(location.hash);
     }
   }
   window.addEventListener("hashchange", () => aplicarVisao(true));
   aplicarVisao(false);
-  if (!secoes.length) return;
-  if (!emAssinatura()) marcar("#" + secoes[0].id);
-  if (!("IntersectionObserver" in window)) return;
-  const marcarSecao = (s) => { if (!emAssinatura()) marcar("#" + s.id); };
+  if (!secoes.length || !("IntersectionObserver" in window)) return;
+  const marcarSecao = (s) => { if (visaoAtual() === "painel") marcar("#" + s.id); };
   const io = new IntersectionObserver((entradas) => {
     entradas.forEach((e) => { if (e.isIntersecting) marcarSecao(e.target); });
   }, { rootMargin: "-25% 0px -65% 0px" });

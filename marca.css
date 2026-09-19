@@ -193,10 +193,13 @@ section[id] { scroll-margin-top: 68px; }
   font-size: 1.15rem;
   color: var(--indigo);
 }
-.passos li.opcional .num { border-style: dashed; }
-.passos li.opcional h3 em { font-family: var(--fonte-corpo); font-size: 0.9rem; font-style: normal; letter-spacing: 0; color: var(--texto-suave); }
 .passos h3 { font-family: var(--fonte-display); font-weight: 400; font-size: 1.25rem; line-height: 1.3; letter-spacing: 0.03em; padding-top: 9px; }
 .passos p { margin-top: 4px; color: var(--texto-suave); max-width: 52ch; }
+.estudio { margin-top: 40px; padding: 28px 24px; border: 1px solid var(--borda); border-radius: 24px; background: var(--lavanda); max-width: 760px; }
+.estudio h3 { font-family: var(--fonte-display); font-weight: 400; font-size: 1.5rem; letter-spacing: 0.03em; }
+.estudio p { margin-top: 8px; color: var(--texto-suave); max-width: 60ch; }
+.ferramentas { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.ferramentas li { padding: 6px 14px; border: 1px solid var(--borda); border-radius: 999px; background: var(--claro); font-size: 0.9rem; font-weight: 500; color: var(--texto); }
 
 /* Duas colunas */
 .dupla { display: grid; gap: 40px; align-items: start; }
@@ -354,7 +357,6 @@ section[id] { scroll-margin-top: 68px; }
   .secao { padding-block: 72px; }
   .faixa { grid-template-columns: repeat(3, 1fr); gap: 32px; }
   .passos { grid-template-columns: 1fr 1fr; }
-  .passos li.opcional { grid-column: 1 / -1; }
   .confianca { grid-template-columns: 1fr 1fr; gap: 16px; }
 }
 @media (min-width: 1000px) {

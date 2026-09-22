@@ -226,12 +226,34 @@ function formatarDataBR(iso) {
 // ---------- Tendências: assuntos jurídicos mais pesquisados no Google na semana, por área ----------
 let areasEmAltaSemanaAtual = new Set();
 
+let semanaTrendsCarregada = null; // semana efetivamente exibida (pode ser a última disponível, não a atual)
+
 async function carregarTendencias() {
   const container = document.getElementById("lista-trends");
+  // Mostra sempre algo: usa a semana atual se já tiver dados; senão cai para a última semana disponível
+  // (a coleta é semanal, às sextas — sem isso a seção fica vazia entre a virada da semana e a próxima coleta).
+  let semana = semanaIsoAtual();
+  const { data: existeAtual } = await supabaseClient
+    .from("trends_semanais").select("semana_iso").eq("semana_iso", semana).limit(1);
+  if (!existeAtual || existeAtual.length === 0) {
+    const { data: ultima } = await supabaseClient
+      .from("trends_semanais").select("semana_iso").order("semana_iso", { ascending: false }).limit(1);
+    if (ultima && ultima.length > 0) semana = ultima[0].semana_iso;
+  }
+  semanaTrendsCarregada = semana;
+  const notaFrescor = document.getElementById("trends-frescor");
+  if (notaFrescor) {
+    if (semana !== semanaIsoAtual()) {
+      notaFrescor.textContent = `Última atualização disponível: semana ${semana}. A coleta é semanal.`;
+      notaFrescor.hidden = false;
+    } else {
+      notaFrescor.hidden = true;
+    }
+  }
   const { data } = await supabaseClient
     .from("trends_semanais")
     .select("area, termo, posicao")
-    .eq("semana_iso", semanaIsoAtual())
+    .eq("semana_iso", semana)
     .order("posicao", { ascending: true });
   const trends = data || [];
   areasEmAltaSemanaAtual = new Set(trends.map((t) => t.area));
@@ -274,7 +296,7 @@ function criarCartaoPronto(r) {
   const cab = document.createElement("header");
   const chips = criarEl("div", "roteiro-chips", "");
   chips.appendChild(criarEl("span", "chip-area", rotuloArea(r.area)));
-  if (areasEmAltaSemanaAtual.has(r.area) && r.semana_iso === semanaIsoAtual()) chips.appendChild(criarEl("span", "selo-alta", "em alta"));
+  if (areasEmAltaSemanaAtual.has(r.area) && r.semana_iso === semanaTrendsCarregada) chips.appendChild(criarEl("span", "selo-alta", "em alta"));
   if (r.tom) chips.appendChild(criarEl("span", "chip-tom", rotuloTom(r.tom)));
   cab.appendChild(chips);
   cab.appendChild(criarEl("span", "roteiro-semana", `Semana ${r.semana_iso}`));

@@ -212,6 +212,30 @@ function semanaIsoAtual() {
   return `${data.getUTCFullYear()}-W${String(semana).padStart(2, "0")}`;
 }
 
+// "2026-W38" -> {inicio: segunda, fim: domingo} daquela semana ISO (UTC, sem depender de fuso do navegador).
+function intervaloDaSemanaIso(semanaIso) {
+  const m = /^(\d{4})-W(\d{2})$/.exec(semanaIso || "");
+  if (!m) return null;
+  const ano = Number(m[1]), semana = Number(m[2]);
+  const d4 = new Date(Date.UTC(ano, 0, 4)); // 4 de janeiro sempre cai na semana ISO 1
+  const diaSemanaD4 = d4.getUTCDay() || 7;
+  const segundaSemana1 = new Date(d4); segundaSemana1.setUTCDate(d4.getUTCDate() - diaSemanaD4 + 1);
+  const inicio = new Date(segundaSemana1); inicio.setUTCDate(segundaSemana1.getUTCDate() + (semana - 1) * 7);
+  const fim = new Date(inicio); fim.setUTCDate(inicio.getUTCDate() + 6);
+  return { inicio, fim };
+}
+
+function formatarPeriodoTrends(semanaIso) {
+  const intervalo = intervaloDaSemanaIso(semanaIso);
+  if (!intervalo) return "";
+  const dd = (d) => String(d.getUTCDate()).padStart(2, "0");
+  const mm = (d) => String(d.getUTCMonth() + 1).padStart(2, "0");
+  const { inicio, fim } = intervalo;
+  return inicio.getUTCFullYear() === fim.getUTCFullYear()
+    ? `Período: ${dd(inicio)}/${mm(inicio)} a ${dd(fim)}/${mm(fim)}/${fim.getUTCFullYear()}`
+    : `Período: ${dd(inicio)}/${mm(inicio)}/${inicio.getUTCFullYear()} a ${dd(fim)}/${mm(fim)}/${fim.getUTCFullYear()}`;
+}
+
 const ROTULOS_TOM = { urgencia: "Urgência", storytelling: "Storytelling", prevencao: "Prevenção" };
 function rotuloTom(tom) {
   return ROTULOS_TOM[tom] || (tom.charAt(0).toUpperCase() + tom.slice(1));
@@ -242,14 +266,7 @@ async function carregarTendencias() {
   }
   semanaTrendsCarregada = semana;
   const notaFrescor = document.getElementById("trends-frescor");
-  if (notaFrescor) {
-    if (semana !== semanaIsoAtual()) {
-      notaFrescor.textContent = `Última atualização disponível: semana ${semana}. A coleta é semanal.`;
-      notaFrescor.hidden = false;
-    } else {
-      notaFrescor.hidden = true;
-    }
-  }
+  if (notaFrescor) notaFrescor.textContent = formatarPeriodoTrends(semana);
   const { data } = await supabaseClient
     .from("trends_semanais")
     .select("area, termo, posicao")

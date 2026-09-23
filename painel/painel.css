@@ -334,7 +334,7 @@ body.auth {
 .grupo-trends li { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0; border-top: 1px solid var(--borda); }
 .grupo-trends li:first-child { border-top: 0; }
 .trend-posicao { flex: none; width: 24px; color: var(--indigo-hover); font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.trend-termo { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.trend-termo { text-transform: capitalize; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 /* Meus roteiros */
 .abas { margin-top: 20px; display: flex; gap: 4px; border-bottom: 1px solid var(--borda); }

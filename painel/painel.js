@@ -287,7 +287,7 @@ async function carregarTendencias() {
       const li = document.createElement("li");
       li.appendChild(criarEl("span", "trend-posicao", String(i + 1)));
       li.appendChild(criarEl("span", "trend-termo", t.termo));
-      if (i === 0) li.appendChild(criarEl("span", "selo-alta", "em alta"));
+      if (i === 0) li.appendChild(criarEl("span", "selo-alta", "Em alta"));
       lista.appendChild(li);
     });
     grupo.appendChild(lista);
@@ -313,7 +313,7 @@ function criarCartaoPronto(r) {
   const cab = document.createElement("header");
   const chips = criarEl("div", "roteiro-chips", "");
   chips.appendChild(criarEl("span", "chip-area", rotuloArea(r.area)));
-  if (areasEmAltaSemanaAtual.has(r.area) && r.semana_iso === semanaTrendsCarregada) chips.appendChild(criarEl("span", "selo-alta", "em alta"));
+  if (areasEmAltaSemanaAtual.has(r.area) && r.semana_iso === semanaTrendsCarregada) chips.appendChild(criarEl("span", "selo-alta", "Em alta"));
   if (r.tom) chips.appendChild(criarEl("span", "chip-tom", rotuloTom(r.tom)));
   cab.appendChild(chips);
   cab.appendChild(criarEl("span", "roteiro-semana", `Semana ${r.semana_iso}`));
@@ -439,7 +439,7 @@ async function carregarDetalhesAssinatura() {
   });
   container.textContent =
     `Áreas: ${assinatura.areas.map(rotuloArea).join(", ")} — ${valor}/mês — ` +
-    (assinatura.forma_pagamento === "cartao_credito" ? "cartão de crédito" : "Pix");
+    (assinatura.forma_pagamento === "cartao_credito" ? "Cartão de crédito" : "Pix");
 
   if (assinatura.status === "cancelamento_agendado") {
     botaoCancelar.style.display = "none";
@@ -571,7 +571,7 @@ const LIMITE_PADRAO = 30;
 const LIMITE_MUITAS_AREAS = 100;
 const LIMITE_HISTORICO = 100;
 const AVISO_FIDELIDADE = "Roteiro baseado apenas no resumo do julgado. Confira o julgado original antes de publicar.";
-const NAO_INFORMADO = "não informado pela fonte";
+const NAO_INFORMADO = "Não informado pela fonte";
 
 let tiposRoteiro = [];
 let usoMes = { usados: null, limite: LIMITE_PADRAO };
